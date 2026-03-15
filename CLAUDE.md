@@ -17,7 +17,8 @@ These resources are shared across HDC projects and must already exist before reb
 |---|---|---|
 | ACM wildcard cert | `arn:aws:acm:us-east-1:420030147545:certificate/36daeb2b-20e3-4910-bbe1-acac865f5adb` | `*.hilldogs.net` — **must be in us-east-1** |
 | Route 53 hosted zone | `Z09301025V2NYG3DJ3TL` | `hilldogs.net` zone |
-| HDC logo file | `hilldogs-logo.png` in `frontend/public/` | Copy from `repl.hilldogs.net/frontend/public/hilldogs-logo.png` |
+
+The HDC logo (`frontend/public/hilldogs-logo.png`) is checked into this repo and requires no external copy.
 
 If the ACM cert or Route 53 zone do not exist, contact the HDC AWS account owner before attempting a rebuild.
 
@@ -184,6 +185,11 @@ bash infra/provision-cloudfront.sh   # also creates Route 53 DNS record
 bash tests/run-all.sh --phase 3
 
 # 6. Phase 4 — Deploy frontend
+#    IMPORTANT: after a rebuild, AWS will assign new resource IDs. Update these
+#    hardcoded values in frontend/src/config.js before running deploy.ps1:
+#      COGNITO_POOL_ID   → new COGNITO_USER_POOL_ID from outputs.env
+#      COGNITO_CLIENT_ID → new COGNITO_CLIENT_ID from outputs.env
+#      API_BASE          → new APIGW_BASE_URL from outputs.env
 pwsh deploy.ps1   # npm install + build + S3 sync + CF invalidation
 bash tests/run-all.sh --phase 4
 ```
