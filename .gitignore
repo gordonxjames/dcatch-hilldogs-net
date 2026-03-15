@@ -1,0 +1,21 @@
+# Environment / secrets — never commit
+infra/outputs.env
+*.env
+.env*
+!infra/outputs.env.template
+
+# Node
+node_modules/
+frontend/dist/
+
+# Lambda build artifacts
+infra/lambda/lambda.zip
+infra/lambda/node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+*.swp

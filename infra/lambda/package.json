@@ -1,0 +1,8 @@
+{
+  "name": "dcatch-lambda",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "dependencies": {
+    "@aws-sdk/client-sesv2": "^3.1009.0"
+  }
+}
