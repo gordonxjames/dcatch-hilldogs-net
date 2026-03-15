@@ -148,11 +148,36 @@ Full values in `infra/outputs.env` (gitignored).
 4. **Follow phase-end checklist.**
 
 ### Implementation notes for Phase 4
-- **Reference**: `gordonxjames/repl-hilldogs-net` `frontend/` for component structure, auth hooks,
-  CSS variable conventions. Implement analogous but independent code here (do not copy files directly).
-- **Cognito config**: pool ID `us-east-2_7fwfzEQZM`, client ID `38bvf5r3hs4mlfm2d3cu05b011`
-- **API base URL**: `https://0rsdzot34a.execute-api.us-east-2.amazonaws.com/v1`
-- **CF distribution ID** for invalidation: `E1BFXVAS6JB4C4` (also in `outputs.env` as `CF_DISTRIBUTION_ID`)
+
+**Cognito / API config** — REPL uses a checked-in `frontend/src/config.js` (not `.env`) for pool ID,
+client ID, and API base URL. These are not secrets. Follow the same pattern:
+```js
+export const COGNITO_REGION    = 'us-east-2';
+export const COGNITO_POOL_ID   = 'us-east-2_7fwfzEQZM';
+export const COGNITO_CLIENT_ID = '38bvf5r3hs4mlfm2d3cu05b011';
+export const API_BASE          = 'https://0rsdzot34a.execute-api.us-east-2.amazonaws.com/v1';
+```
+
+**Auth package** — REPL uses `amazon-cognito-identity-js` v6 (confirmed). Use the same package;
+do not use `@aws-amplify/auth` or `aws-amplify`.
+
+**`frontend/` directory** — already exists on disk with empty `public/`, `src/auth/`,
+`src/components/`, `src/pages/` subdirectories (not tracked by git — empty dirs). Scaffold into
+this existing structure rather than creating from scratch.
+
+**HDC logo** — copy `hilldogs-logo.png` from `repl.hilldogs.net/frontend/public/hilldogs-logo.png`
+into `dcatch/frontend/public/hilldogs-logo.png` before building.
+
+**`deploy.ps1`** — must parse `CF_DISTRIBUTION_ID` from `infra/outputs.env` at runtime (not
+hardcoded) so the script works after a rebuild that produces a new distribution ID.
+
+**`tests/phase4.sh` scope** — auth flow testing requires live user accounts; limit automated
+tests to: S3 bucket has ≥1 object, CloudFront root returns HTTP 200, HTTP redirects to HTTPS,
+`/login` path returns 200 (SPA routing). Document this limitation in the test file header.
+
+**Reference**: `gordonxjames/repl-hilldogs-net` `frontend/` for component structure, auth hooks,
+CSS variable conventions. Implement analogous but independent code here (do not copy files directly).
+**CF distribution ID** for invalidation: `E1BFXVAS6JB4C4` (also in `outputs.env` as `CF_DISTRIBUTION_ID`).
 
 ## Known Deferred Items
 
