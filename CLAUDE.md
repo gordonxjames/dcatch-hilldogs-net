@@ -78,12 +78,12 @@ Read from it to understand conventions; implement analogous but independent reso
 
 - **Phase 1** — VPC, Cognito, IAM, S3. See `PHASE_1_SUMMARY.md`.
 - **Phase 2** — Lambda, API Gateway, EventBridge keep-warm. See `PHASE_2_SUMMARY.md`.
+- **Phase 3** — CloudFront OAC + distribution, S3 bucket policy, Route 53 DNS. See `PHASE_3_SUMMARY.md`.
 
-## Current State (end of Phase 2)
+## Current State (end of Phase 3)
 
-All foundational AWS resources plus Lambda and API Gateway are provisioned. The API is live at
-`https://0rsdzot34a.execute-api.us-east-2.amazonaws.com/v1`. The S3 bucket has no content and
-CloudFront/DNS not yet configured.
+All infrastructure is provisioned. `https://dcatch.hilldogs.net` resolves and reaches CloudFront (returns
+403 — bucket is empty). The site will serve content after Phase 4 deploys the React frontend.
 
 | Resource | Name | ID |
 |---|---|---|
@@ -102,53 +102,44 @@ CloudFront/DNS not yet configured.
 | EventBridge Rule | dcatch-lambda-keepwarm | rate(5 minutes) |
 | REST API | dcatch-api-gw | 0rsdzot34a |
 | API Stage | v1 | https://0rsdzot34a.execute-api.us-east-2.amazonaws.com/v1 |
+| CloudFront OAC | dcatch-s3-oac | E2HC19CJC7ET7N |
+| CloudFront Distribution | dcatch.hilldogs.net | E1BFXVAS6JB4C4 |
+| CloudFront Domain | — | d166oqa1rcdpok.cloudfront.net |
+| Route 53 A ALIAS | dcatch.hilldogs.net | → CloudFront |
 
 Full values in `infra/outputs.env` (gitignored).
 
-## Next Phase — Phase 3: CloudFront and DNS
+## Next Phase — Phase 4: Build and Deploy React Frontend
 
 **Start of phase:** Create Jira tickets for each deliverable before writing any code.
 
 ### Deliverables
 
-1. **`bash infra/provision-cloudfront.sh`** — end state:
-   - Origin Access Control (OAC) created for the S3 bucket
-   - CloudFront distribution with:
-     - Origin: `dcatch-hilldogs-frontend` S3 bucket via OAC
-     - Alternate domain: `dcatch.hilldogs.net`
-     - ACM cert: `arn:aws:acm:us-east-1:420030147545:certificate/36daeb2b-20e3-4910-bbe1-acac865f5adb` (wildcard `*.hilldogs.net`, **must be in us-east-1**)
-     - Default root object: `index.html`
-     - Custom error responses: 403 → `/index.html` (status 200), 404 → `/index.html` (status 200) — required for React SPA client-side routing
-     - Price class: `PriceClass_100` (US + Europe — cost saving consistent with REPL)
-     - Logging: off (can be enabled later)
-   - S3 bucket policy updated to allow only the CloudFront OAC principal (replaces any existing policy)
-   - Writes `CF_DISTRIBUTION_ID` and `CF_DOMAIN` to `outputs.env`
+1. **React frontend** — scaffold `frontend/` using Vite + React 18:
+   - Login page: two-panel layout per Frontend Design Decisions above
+   - Home page: protected route, "Welcome, [username]."
+   - Account Settings (`/settings`): username (read-only), email, phone, password
+   - Footer: identical structure to REPL, amber color scheme
+   - Auth flows: sign in, create account, verify, forgot password, reset password
 
-2. **DNS record** — `hilldogs.net` is in Route 53, hosted zone `Z09301025V2NYG3DJ3TL`.
-   Create an A ALIAS record `dcatch.hilldogs.net` → CloudFront domain using CloudFront's
-   fixed Route 53 hosted zone ID `Z2FDTNDATAQYW2`. Use `Action: UPSERT` (safe to re-run).
-   Test after propagation (usually < 5 min for Route 53 aliases): `curl -I https://dcatch.hilldogs.net`
+2. **`deploy.ps1`** — PowerShell script:
+   ```powershell
+   cd frontend; npm install; npm run build
+   aws s3 sync dist/ s3://dcatch-hilldogs-frontend --delete
+   aws cloudfront create-invalidation --distribution-id $CF_DISTRIBUTION_ID --paths "/*"
+   ```
 
-3. **Follow phase-end checklist** — tests, summary, CLAUDE.md update, commit/push.
+3. **`tests/phase4.sh`** — verifies S3 has content, CloudFront serves `index.html` at root,
+   redirects HTTP → HTTPS, and `/login` returns 200 (SPA routing working).
 
-### Implementation notes for Phase 3
-- **Reference**: `gordonxjames/repl-hilldogs-net` `infra/provision.sh` lines ~216–330 is a near-complete
-  template — adapt names (`repl-` → `dcatch-`, `repl-s3-origin` → `dcatch-s3-origin`, etc.)
-- **CloudFront deployment takes ~15 minutes** — `aws cloudfront wait distribution-deployed` will block
-- **No `jq` on this machine; `python3` also unavailable** — use AWS CLI `--query` (JMESPath) for all JSON
-  extraction in provision scripts. `node -e "..."` is available (Node v24) as a fallback if needed.
-- **Cache policy**: use AWS managed `CachingOptimized` ID `658327ea-f89d-4fab-a63d-7e88639e58f6`
-- **OAC config**: `SigningProtocol=sigv4,SigningBehavior=always,OriginAccessControlOriginType=s3`
-- **Outputs to write**: `CF_OAC_ID`, `CF_DISTRIBUTION_ID`, `CF_DOMAIN` → `outputs.env`
+4. **Follow phase-end checklist.**
 
-### Phase 4 preview (deploy frontend)
-After Phase 3 the site resolves but shows nothing. Phase 4 builds and deploys the React frontend:
-```bash
-cd frontend && npm install && npm run build
-aws s3 sync dist/ s3://dcatch-hilldogs-frontend --delete
-aws cloudfront create-invalidation --distribution-id $CF_DISTRIBUTION_ID --paths "/*"
-```
-A `deploy.ps1` PowerShell script wrapping these steps will be created in Phase 4.
+### Implementation notes for Phase 4
+- **Reference**: `gordonxjames/repl-hilldogs-net` `frontend/` for component structure, auth hooks,
+  CSS variable conventions. Implement analogous but independent code here (do not copy files directly).
+- **Cognito config**: pool ID `us-east-2_7fwfzEQZM`, client ID `38bvf5r3hs4mlfm2d3cu05b011`
+- **API base URL**: `https://0rsdzot34a.execute-api.us-east-2.amazonaws.com/v1`
+- **CF distribution ID** for invalidation: `E1BFXVAS6JB4C4` (also in `outputs.env` as `CF_DISTRIBUTION_ID`)
 
 ## Known Deferred Items
 
@@ -201,10 +192,9 @@ bash infra/provision-apigw.sh
 pwsh infra/configure-lambda.ps1  # reads ALERT_* from outputs.env
 bash tests/run-all.sh --phase 2
 
-# 5. Phase 3 — CloudFront & DNS (after Phase 3 scripts exist)
-# bash infra/provision-cloudfront.sh
-# # then create DNS record (see Next Phase section for details)
-# bash tests/run-all.sh --phase 3
+# 5. Phase 3 — CloudFront & DNS
+bash infra/provision-cloudfront.sh   # also creates Route 53 DNS record
+bash tests/run-all.sh --phase 3
 
 # 6. Phase 4 — Deploy frontend (after frontend exists)
 # cd frontend && npm install && npm run build
