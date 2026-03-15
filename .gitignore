@@ -19,3 +19,6 @@ Thumbs.db
 # Editor
 .vscode/
 *.swp
+
+# Scratch / temporary files
+cf_tmp*.json

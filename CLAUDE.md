@@ -124,13 +124,22 @@ Full values in `infra/outputs.env` (gitignored).
    - S3 bucket policy updated to allow only the CloudFront OAC principal (replaces any existing policy)
    - Writes `CF_DISTRIBUTION_ID` and `CF_DOMAIN` to `outputs.env`
 
-2. **DNS record** — create an alias/CNAME for `dcatch.hilldogs.net` pointing to the CloudFront domain.
-   - **Determine DNS provider first**: check whether `hilldogs.net` is managed in Route 53 or an external registrar.
-     - If Route 53: `aws route53 change-resource-record-sets` with an A ALIAS record.
-     - If external: manually add a CNAME `dcatch → CF_DOMAIN` in the registrar's DNS panel.
-   - DNS propagation can take minutes to hours; test with `curl -I https://dcatch.hilldogs.net` after propagation.
+2. **DNS record** — `hilldogs.net` is in Route 53, hosted zone `Z09301025V2NYG3DJ3TL`.
+   Create an A ALIAS record `dcatch.hilldogs.net` → CloudFront domain using CloudFront's
+   fixed Route 53 hosted zone ID `Z2FDTNDATAQYW2`. Use `Action: UPSERT` (safe to re-run).
+   Test after propagation (usually < 5 min for Route 53 aliases): `curl -I https://dcatch.hilldogs.net`
 
 3. **Follow phase-end checklist** — tests, summary, CLAUDE.md update, commit/push.
+
+### Implementation notes for Phase 3
+- **Reference**: `gordonxjames/repl-hilldogs-net` `infra/provision.sh` lines ~216–330 is a near-complete
+  template — adapt names (`repl-` → `dcatch-`, `repl-s3-origin` → `dcatch-s3-origin`, etc.)
+- **CloudFront deployment takes ~15 minutes** — `aws cloudfront wait distribution-deployed` will block
+- **No `jq` on this machine; `python3` also unavailable** — use AWS CLI `--query` (JMESPath) for all JSON
+  extraction in provision scripts. `node -e "..."` is available (Node v24) as a fallback if needed.
+- **Cache policy**: use AWS managed `CachingOptimized` ID `658327ea-f89d-4fab-a63d-7e88639e58f6`
+- **OAC config**: `SigningProtocol=sigv4,SigningBehavior=always,OriginAccessControlOriginType=s3`
+- **Outputs to write**: `CF_OAC_ID`, `CF_DISTRIBUTION_ID`, `CF_DOMAIN` → `outputs.env`
 
 ### Phase 4 preview (deploy frontend)
 After Phase 3 the site resolves but shows nothing. Phase 4 builds and deploys the React frontend:
