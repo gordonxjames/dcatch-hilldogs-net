@@ -9,6 +9,20 @@ are stored in `infra/outputs.env` (gitignored). After cloning, recreate `outputs
 `infra/outputs.env.template` and run the scripts — each script repopulates its section of `outputs.env`.
 **This requirement must be restated in every phase update to this file.**
 
+## Session Setup — Do This First in Every Session
+
+```bash
+# 1. Set git author email (required — gjames@hilldogs.com triggers GitHub GH007 push rejection)
+git config user.email "gordonxjames@users.noreply.github.com"
+git config user.name "Gordon James"
+
+# 2. Verify AWS credentials
+aws sts get-caller-identity
+```
+
+Jira credentials: `C:/Users/gordon/.claude/jira.env` (not in git)
+Jira project key: `DCATCH`, project ID: `10135`
+
 ## Project Overview
 
 Delta Catcher is an investment analyst tool for modeling quantitative strategies, hosted at
@@ -33,8 +47,26 @@ Delta Catcher is an investment analyst tool for modeling quantitative strategies
 | Tagging | `Project=DCATCH` on all resources | Consistent with HDC convention |
 | Resource prefix | `dcatch-[type]` | Consistent with HDC convention |
 | Frontend stack | React 18 + Vite 5, React Router 6, amazon-cognito-identity-js | Mirrors REPL project |
-| Colors | Amber/gold replacing REPL blues: `#92400e / #b45309 / #d97706` | DCATCH brand identity |
+| Styling | Custom CSS variables, no framework | Mirrors REPL project |
+| Colors | Amber/gold replacing REPL blues: `--primary-dark:#92400e / --primary:#b45309 / --primary-light:#d97706 / --accent:#059669 (teal)` | DCATCH brand identity |
 | Infrastructure tooling | Bash scripts + PowerShell helpers, AWS CLI | Mirrors REPL; human-readable and maintainable |
+
+## Frontend Design Decisions
+
+**Login page** — Two-panel layout (mirrors REPL):
+- Left panel: amber gradient `linear-gradient(160deg, #92400e 0%, #b45309 60%, #d97706 100%)`, HDC logo (260px), title "Delta Catcher" (28px bold white), tagline "Investment modeling tool for quantitative algorithms." (16px italic white 80% opacity). Hidden on mobile.
+- Right panel: light gray bg, white card, tabs: Sign In / Create Account / Verify / Forgot Password / Reset Password
+- Create Account collects: username, email, phone number, password, confirm password
+
+**Footer** — Structurally identical to REPL. Background uses `--primary-dark` (#92400e). Same HDC social links (LinkedIn, Facebook, Instagram), same copyright "Hill Dogs Consulting", same privacy policy URL (https://www.hilldogs.net/privacy.html).
+
+**Home page** — Protected route. Welcome message only: "Welcome, [username]." No other content in initial phase.
+
+**Account Settings** (`/settings`) — Protected route, accessible from upper-right nav icon:
+- Username: read-only (immutable in Cognito — inform user it cannot be changed)
+- Email: editable → `updateUserAttributes` → verification code sent to new address → confirm
+- Phone: editable → `updateUserAttributes` → SMS verification code → confirm
+- Password: current + new + confirm → `changePassword`
 
 ## Reference Project
 
@@ -51,54 +83,61 @@ Read from it to understand conventions; implement analogous but independent reso
 All foundational AWS resources are provisioned. The application is not yet reachable.
 Lambda and API Gateway do not yet exist. S3 bucket exists but has no content and no CloudFront in front of it.
 
-| Resource | ID |
-|---|---|
-| VPC | vpc-009adc65bd69501d7 |
-| Subnet 2a | subnet-06e638b34bdd6c924 |
-| Subnet 2b | subnet-08999ff637c2b93cf |
-| SG Lambda | sg-0418a7cce18963011 |
-| SG DB | sg-05970d52df18fde0a |
-| Cognito user pool | us-east-2_7fwfzEQZM |
-| Cognito client | 38bvf5r3hs4mlfm2d3cu05b011 |
-| Lambda role | arn:aws:iam::420030147545:role/dcatch-lambda-role |
-| Cognito SMS role | arn:aws:iam::420030147545:role/dcatch-cognito-sms-role |
-| S3 bucket | dcatch-hilldogs-frontend |
+| Resource | Name | ID |
+|---|---|---|
+| VPC | dcatch-vpc | vpc-009adc65bd69501d7 |
+| Subnet us-east-2a | dcatch-private-2a | subnet-06e638b34bdd6c924 |
+| Subnet us-east-2b | dcatch-private-2b | subnet-08999ff637c2b93cf |
+| Security Group | dcatch-sg-lambda | sg-0418a7cce18963011 |
+| Security Group | dcatch-sg-db | sg-05970d52df18fde0a |
+| Cognito User Pool | dcatch-user-pool | us-east-2_7fwfzEQZM |
+| Cognito App Client | dcatch-web-client | 38bvf5r3hs4mlfm2d3cu05b011 |
+| IAM Role | dcatch-lambda-role | arn:aws:iam::420030147545:role/dcatch-lambda-role |
+| IAM Role | dcatch-cognito-sms-role | arn:aws:iam::420030147545:role/dcatch-cognito-sms-role |
+| S3 Bucket | dcatch-hilldogs-frontend | dcatch-hilldogs-frontend |
+| ACM Cert (shared) | *.hilldogs.net (us-east-1) | arn:aws:acm:us-east-1:420030147545:certificate/36daeb2b-20e3-4910-bbe1-acac865f5adb |
 
 Full values in `infra/outputs.env` (gitignored).
 
 ## Next Phase — Phase 2: Lambda and API Gateway
 
-1. Run `make-zip.ps1` to package `infra/lambda/`
-2. Run `infra/provision-lambda.sh` — creates `dcatch-api` Lambda in VPC, attaches post-confirmation trigger to Cognito pool
-3. Run `infra/provision-apigw.sh` — creates REST API, Cognito authorizer, `/health` and `/{proxy+}` resources, deploys stage `v1`
-4. Run `infra/configure-lambda.ps1` — sets Lambda env vars from `outputs.env`
-5. Create CloudWatch keep-warm rule `dcatch-lambda-keepwarm`
-6. Update `outputs.env`, write `PHASE_2_SUMMARY.md`, update this file, commit and push
+**Start of phase:** Create Jira tickets for each deliverable before writing any code.
+
+1. Run `pwsh infra/lambda/make-zip.ps1` to package `infra/lambda/`
+2. Run `bash infra/provision-lambda.sh` — creates `dcatch-api` Lambda in VPC, attaches post-confirmation trigger to Cognito pool `us-east-2_7fwfzEQZM`
+3. Run `bash infra/provision-apigw.sh` — creates REST API, Cognito authorizer, `/health` and `/{proxy+}` resources, deploys stage `v1`
+4. Run `pwsh infra/configure-lambda.ps1` — sets Lambda env vars (ALERT_FROM_EMAIL, ALERT_TO_EMAIL) from `outputs.env`
+5. Create CloudWatch keep-warm rule `dcatch-lambda-keepwarm` (EventBridge rule, every 5 minutes)
+6. Follow phase-end checklist below
 
 ## Known Deferred Items
 
 | Ticket | Summary |
 |---|---|
-| DCATCH-1 | Admin alert email — Lambda cannot reach SES from private subnet; IAM policy also missing. Deferred to Phase 2. |
+| DCATCH-1 | Admin alert email — Lambda cannot reach SES from private subnet; IAM policy also missing. Deferred until RDS phase when VPC endpoint cost is justified. |
+
+## Phase-End Checklist (every phase, in this order)
+
+1. **Create Jira tickets** at the *start* of each phase before writing code
+2. Run all cumulative tests: `bash tests/run-all.sh --phase N`
+3. All tests must pass before proceeding
+4. Add `tests/phaseN.sh` covering everything new this phase
+5. Update `infra/outputs.env` with all new resource IDs
+6. Write `PHASE_N_SUMMARY.md` (resources built, decisions made, known gaps, script fixes)
+7. Update this `CLAUDE.md` (completed phases, current state, next phase steps)
+8. Commit and push: `git add ... && git commit && git push`
 
 ## Jira Issue Types (for creating tickets via API)
 
 Task=10199, Bug=10200, Story=10201, Epic=10202, Subtask=10203
 
-## Standard Phase-End Checklist
-
-Every phase must complete these steps before closing, in this order:
-1. Run all tests up to current phase: `bash tests/run-all.sh --phase N`
-2. All tests must pass before proceeding to documentation or commit
-3. Add new phase test file `tests/phaseN.sh` covering everything provisioned this phase
-4. Update `infra/outputs.env` with all new resource IDs
-5. Write `PHASE_N_SUMMARY.md` (resources, decisions, known gaps)
-6. Update `CLAUDE.md` (completed phases, current state, next phase steps)
-7. Commit and push to GitHub
-
 ## Rebuild From Scratch Steps
 
 ```bash
+# 0. Session setup
+git config user.email "gordonxjames@users.noreply.github.com"
+git config user.name "Gordon James"
+
 # 1. Clone repo
 git clone https://github.com/gordonxjames/dcatch-hilldogs-net.git
 cd dcatch-hilldogs-net
@@ -111,16 +150,20 @@ bash infra/provision-iam.sh
 bash infra/provision-vpc.sh
 bash infra/provision-cognito.sh
 bash infra/provision-s3.sh
+bash tests/run-all.sh --phase 1
 
 # 4. Phase 2 — Lambda & API Gateway (after Phase 2 scripts exist)
 # pwsh infra/lambda/make-zip.ps1
 # bash infra/provision-lambda.sh
 # bash infra/provision-apigw.sh
 # pwsh infra/configure-lambda.ps1
+# bash tests/run-all.sh --phase 2
 
 # 5. Phase 3 — CloudFront & DNS (after Phase 3 scripts exist)
 # bash infra/provision-cloudfront.sh
+# bash tests/run-all.sh --phase 3
 
 # 6. Phase 4 — Deploy frontend (after frontend exists)
 # cd frontend && npm install && pwsh deploy.ps1
+# bash tests/run-all.sh --phase 4
 ```
