@@ -1,0 +1,183 @@
+
+╔══════════════════════════════════════════╗
+║   DCATCH Infrastructure Test Suite       ║
+╚══════════════════════════════════════════╝
+  Run at: Sun, Mar 15, 2026  4:29:02 PM
+  Repo:   /c/Users/gordon/OneDrive - Hill Dogs Consulting/Documents/Development/dcatch.hilldogs.net
+
+━━━ Phase 1 Tests ━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+── IAM — Lambda execution role ──
+  [PASS] dcatch-lambda-role exists
+  [PASS] Lambda role ARN matches outputs.env
+  [PASS] AWSLambdaVPCAccessExecutionRole attached
+  [PASS] Lambda role tagged Project=DCATCH
+
+── IAM — Cognito SMS role ──
+  [PASS] dcatch-cognito-sms-role exists
+  [PASS] Cognito SMS role ARN matches outputs.env
+  [PASS] Cognito SMS role trusted by cognito-idp
+  [PASS] Cognito SMS inline policy exists
+  [PASS] SMS policy grants sns:Publish
+  [PASS] Cognito SMS role tagged Project=DCATCH
+
+── VPC ──
+  [PASS] dcatch-vpc CIDR is 10.1.0.0/16
+  [PASS] dcatch-vpc state is available
+  [PASS] VPC DNS hostnames enabled
+  [PASS] VPC DNS support enabled
+  [PASS] VPC tagged Project=DCATCH
+  [PASS] VPC tagged Name=dcatch-vpc
+
+── Subnets ──
+  [PASS] Subnet 2a CIDR is 10.1.1.0/24
+  [PASS] Subnet 2a is in us-east-2a
+  [PASS] Subnet 2a in correct VPC
+  [PASS] Subnet 2a is private (no auto-assign public IP)
+  [PASS] Subnet 2a tagged Project=DCATCH
+  [PASS] Subnet 2b CIDR is 10.1.2.0/24
+  [PASS] Subnet 2b is in us-east-2b
+  [PASS] Subnet 2b in correct VPC
+  [PASS] Subnet 2b is private (no auto-assign public IP)
+  [PASS] Subnet 2b tagged Project=DCATCH
+
+── Security Groups ──
+  [PASS] sg-lambda in correct VPC
+  [PASS] sg-lambda name is dcatch-sg-lambda
+  [PASS] sg-lambda has no inbound rules
+  [PASS] sg-lambda tagged Project=DCATCH
+  [PASS] sg-db in correct VPC
+  [PASS] sg-db name is dcatch-sg-db
+  [PASS] sg-db has exactly one inbound rule
+  [PASS] sg-db inbound rule is TCP
+  [PASS] sg-db inbound from port 5432
+  [PASS] sg-db inbound to port 5432
+  [PASS] sg-db inbound source is sg-lambda
+  [PASS] sg-db tagged Project=DCATCH
+
+── Cognito — User Pool ──
+  [PASS] User pool name is dcatch-user-pool
+  [PASS] User pool MFA is ON
+  [PASS] User pool has email alias attribute
+  [PASS] Email is auto-verified
+  [PASS] Phone is auto-verified
+  [PASS] Email attribute is required
+  [PASS] Email attribute is mutable
+  [PASS] Phone attribute is required
+  [PASS] Phone attribute is mutable
+  [PASS] Password min length is 8
+  [PASS] Password requires uppercase
+  [PASS] Password requires lowercase
+  [PASS] Password requires numbers
+  [PASS] Password does not require symbols
+
+── Cognito — App Client ──
+  [PASS] Client name is dcatch-web-client
+  [PASS] Client has no secret
+  [PASS] Client has ALLOW_USER_SRP_AUTH
+  [PASS] Client has ALLOW_REFRESH_TOKEN_AUTH
+  [PASS] Client has ALLOW_USER_PASSWORD_AUTH
+  [PASS] Client prevent-user-existence-errors is ENABLED
+
+── S3 Bucket ──
+  [PASS] dcatch-hilldogs-frontend bucket exists
+  [PASS] BlockPublicAcls is true
+  [PASS] IgnorePublicAcls is true
+  [PASS] BlockPublicPolicy is true
+  [PASS] RestrictPublicBuckets is true
+  [PASS] S3 bucket tagged Project=DCATCH
+  [PASS] S3 bucket tagged Name=dcatch-hilldogs-frontend
+
+━━━ Phase 2 Tests ━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+── Lambda — function ──
+  [PASS] Lambda runtime is nodejs20.x
+  [PASS] Lambda handler is index.handler
+  [PASS] Lambda role matches outputs.env
+  [PASS] Lambda state is Active
+  [PASS] Lambda timeout is 30s
+  [PASS] Lambda memory is 256 MB
+  [PASS] Lambda ARN matches outputs.env
+
+── Lambda — VPC config ──
+  [PASS] Lambda in subnet 2a
+  [PASS] Lambda in subnet 2b
+  [PASS] Lambda uses sg-lambda
+  [PASS] Lambda in correct VPC
+
+── Lambda — tags ──
+  [PASS] Lambda tagged Project=DCATCH
+
+── Cognito — post-confirmation trigger ──
+  [PASS] Cognito post-confirmation trigger set to Lambda
+
+── EventBridge — keep-warm rule ──
+  [PASS] Keep-warm rule is ENABLED
+  [PASS] Keep-warm rule schedule is rate(5 minutes)
+  [PASS] Keep-warm rule targets Lambda
+
+── API Gateway — REST API ──
+  [PASS] REST API name is dcatch-api-gw
+  [PASS] REST API endpoint type is REGIONAL
+  [PASS] REST API tagged Project=DCATCH
+
+── API Gateway — Cognito authorizer ──
+  [PASS] Authorizer type is COGNITO_USER_POOLS
+  [PASS] Authorizer name is dcatch-cognito-auth
+  [PASS] Authorizer identity source is Authorization header
+  [PASS] Authorizer points to correct Cognito pool
+
+── API Gateway — resources ──
+  [PASS] /health GET has no auth
+  [PASS] /{proxy+} ANY uses Cognito auth
+
+── API Gateway — stage ──
+  [PASS] Stage v1 exists
+
+── HTTP — /health endpoint ──
+  [PASS] GET /health returns 200
+  [PASS] GET /health body has status ok
+  [PASS] GET /health body has service dcatch-api
+
+━━━ Phase 3 Tests ━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+── CloudFront — outputs.env ──
+  [PASS] CF_OAC_ID is set in outputs.env
+  [PASS] CF_DISTRIBUTION_ID is set in outputs.env
+  [PASS] CF_DOMAIN is set in outputs.env
+
+── CloudFront — OAC ──
+  [PASS] OAC signing protocol is sigv4
+  [PASS] OAC signing behavior is always
+  [PASS] OAC origin type is s3
+
+── CloudFront — distribution ──
+  [PASS] Distribution status is Deployed
+  [PASS] Distribution is enabled
+  [PASS] Distribution alias is dcatch.hilldogs.net
+  [PASS] Distribution uses correct ACM cert
+  [PASS] Default root object is index.html
+  [PASS] Price class is PriceClass_100
+  [PASS] 403 custom error returns 200
+  [PASS] 404 custom error returns 200
+  [PASS] OAC is attached to distribution origin
+
+── S3 — bucket policy (OAC-only) ──
+  [PASS] S3 policy principal is cloudfront.amazonaws.com
+  [PASS] S3 policy condition matches CloudFront ARN
+
+── Route 53 — DNS record ──
+  [PASS] A ALIAS record points to CF domain
+
+── HTTPS endpoint ──
+  [PASS] https://dcatch.hilldogs.net/ returns HTTP response (got 403)
+
+════════════════════════════════════════
+ Results: All Phases (up to Phase 3)
+════════════════════════════════════════
+  Total:  113
+  Passed: 113
+  Failed: 0
+
+All tests passed.
+

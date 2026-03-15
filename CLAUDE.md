@@ -9,6 +9,18 @@ are stored in `infra/outputs.env` (gitignored). After cloning, recreate `outputs
 `infra/outputs.env.template` and run the scripts — each script repopulates its section of `outputs.env`.
 **This requirement must be restated in every phase update to this file.**
 
+### Pre-existing HDC dependencies (NOT recreated by provision scripts)
+
+These resources are shared across HDC projects and must already exist before rebuilding DCATCH:
+
+| Resource | ID/Value | Notes |
+|---|---|---|
+| ACM wildcard cert | `arn:aws:acm:us-east-1:420030147545:certificate/36daeb2b-20e3-4910-bbe1-acac865f5adb` | `*.hilldogs.net` — **must be in us-east-1** |
+| Route 53 hosted zone | `Z09301025V2NYG3DJ3TL` | `hilldogs.net` zone |
+| HDC logo file | `hilldogs-logo.png` in `frontend/public/` | Copy from `repl.hilldogs.net/frontend/public/hilldogs-logo.png` |
+
+If the ACM cert or Route 53 zone do not exist, contact the HDC AWS account owner before attempting a rebuild.
+
 ## Session Setup — Do This First in Every Session
 
 ```bash
@@ -122,11 +134,12 @@ Full values in `infra/outputs.env` (gitignored).
    - Footer: identical structure to REPL, amber color scheme
    - Auth flows: sign in, create account, verify, forgot password, reset password
 
-2. **`deploy.ps1`** — PowerShell script:
+2. **`deploy.ps1`** — PowerShell script (reads `infra/outputs.env` for IDs):
    ```powershell
+   # Reads CF_DISTRIBUTION_ID from infra/outputs.env, builds frontend, syncs to S3, invalidates cache
    cd frontend; npm install; npm run build
    aws s3 sync dist/ s3://dcatch-hilldogs-frontend --delete
-   aws cloudfront create-invalidation --distribution-id $CF_DISTRIBUTION_ID --paths "/*"
+   aws cloudfront create-invalidation --distribution-id E1BFXVAS6JB4C4 --paths "/*"
    ```
 
 3. **`tests/phase4.sh`** — verifies S3 has content, CloudFront serves `index.html` at root,
@@ -153,10 +166,11 @@ Full values in `infra/outputs.env` (gitignored).
 2. Run all cumulative tests: `bash tests/run-all.sh --phase N`
 3. All tests must pass before proceeding
 4. Add `tests/phaseN.sh` covering everything new this phase
-5. Update `infra/outputs.env` with all new resource IDs
-6. Write `PHASE_N_SUMMARY.md` (resources built, decisions made, known gaps, script fixes)
-7. Update this `CLAUDE.md` (completed phases, current state, next phase steps)
-8. Commit and push: `git add ... && git commit && git push`
+5. Save final test run output: `bash tests/run-all.sh --phase N 2>&1 | sed 's/\x1b\[[0-9;]*m//g' > tests/results/phaseN-final.txt`
+6. Update `infra/outputs.env` with all new resource IDs
+7. Write `PHASE_N_SUMMARY.md` (resources built, decisions made, known gaps, script fixes)
+8. Update this `CLAUDE.md` (completed phases, current state, next phase steps)
+9. Commit and push: `git add ... && git commit && git push`
 
 ## Jira Issue Types (for creating tickets via API)
 
