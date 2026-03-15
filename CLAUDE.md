@@ -85,6 +85,17 @@ Full values in `infra/outputs.env` (gitignored).
 
 Task=10199, Bug=10200, Story=10201, Epic=10202, Subtask=10203
 
+## Standard Phase-End Checklist
+
+Every phase must complete these steps before closing, in this order:
+1. Run all tests up to current phase: `bash tests/run-all.sh --phase N`
+2. All tests must pass before proceeding to documentation or commit
+3. Add new phase test file `tests/phaseN.sh` covering everything provisioned this phase
+4. Update `infra/outputs.env` with all new resource IDs
+5. Write `PHASE_N_SUMMARY.md` (resources, decisions, known gaps)
+6. Update `CLAUDE.md` (completed phases, current state, next phase steps)
+7. Commit and push to GitHub
+
 ## Rebuild From Scratch Steps
 
 ```bash
