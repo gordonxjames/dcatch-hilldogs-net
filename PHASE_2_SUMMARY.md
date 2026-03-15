@@ -25,12 +25,14 @@
 - Lambda path check uses `/health` (API GW strips stage prefix before forwarding to Lambda)
 - ALERT_FROM_EMAIL / ALERT_TO_EMAIL stored in `outputs.env` (not hardcoded in scripts)
 
-## Known Issues Fixed
+## Script Fixes Applied During Phase 2 Execution
 
-- `tests/run-all.sh`: for-loop used `$(ls ... | sort -V)` which word-splits on paths with spaces; fixed to use `while read -r -d ''` with `printf '%s\0' | sort -zV`
+- `tests/run-all.sh`: for-loop used `$(ls ... | sort -V)` which word-splits on paths with spaces; fixed to `while IFS= read -r -d '' ... done < <(printf '%s\0' ... | sort -zV)`
 - `tests/lib.sh`: `((PASS++))` returns exit code 1 when PASS=0, triggering `set -e`; fixed to `PASS=$((PASS + 1))`
-- `infra/provision-lambda.sh`: `--tags Key=Project,Value=DCATCH` creates two wrong tags on Lambda; correct syntax is `--tags Project=DCATCH`
-- Cognito `update-user-pool` with `--lambda-config` clears other settings if not re-supplied; fixed by always including all required fields together
+- `infra/provision-lambda.sh`: `--tags Key=Project,Value=DCATCH` creates two wrong tags (`Key` and `Value`) on Lambda; correct Lambda tag syntax is `--tags Project=DCATCH`
+- `infra/lambda/index.js`: path check was `/v1/health`; fixed to `/health` — API Gateway strips the stage prefix before forwarding to Lambda, so Lambda sees `/health` not `/v1/health`
+- **Critical Cognito gotcha**: `aws cognito-idp update-user-pool` resets ALL unspecified fields to their defaults. Calling it with only `--lambda-config` silently wipes `--auto-verified-attributes`, `--mfa-configuration`, and `--sms-configuration`. Fixed in `provision-lambda.sh` by always supplying all required pool settings in the same call.
+- `tests/phase2.sh`: API Gateway `get-resources` requires `--embed methods` to return method authorization types; without this flag `resourceMethods.GET.authorizationType` returns empty.
 
 ## Known Gaps
 

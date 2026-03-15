@@ -109,11 +109,37 @@ Full values in `infra/outputs.env` (gitignored).
 
 **Start of phase:** Create Jira tickets for each deliverable before writing any code.
 
-1. Run `bash infra/provision-cloudfront.sh` — creates CloudFront distribution in front of S3 bucket,
-   attaches ACM cert `arn:aws:acm:us-east-1:420030147545:certificate/36daeb2b-...` (wildcard *.hilldogs.net),
-   sets `dcatch.hilldogs.net` as the alternate domain name
-2. Update Route 53 (or external DNS) with an alias/CNAME for `dcatch.hilldogs.net` → CloudFront domain
-3. Follow phase-end checklist below
+### Deliverables
+
+1. **`bash infra/provision-cloudfront.sh`** — end state:
+   - Origin Access Control (OAC) created for the S3 bucket
+   - CloudFront distribution with:
+     - Origin: `dcatch-hilldogs-frontend` S3 bucket via OAC
+     - Alternate domain: `dcatch.hilldogs.net`
+     - ACM cert: `arn:aws:acm:us-east-1:420030147545:certificate/36daeb2b-20e3-4910-bbe1-acac865f5adb` (wildcard `*.hilldogs.net`, **must be in us-east-1**)
+     - Default root object: `index.html`
+     - Custom error responses: 403 → `/index.html` (status 200), 404 → `/index.html` (status 200) — required for React SPA client-side routing
+     - Price class: `PriceClass_100` (US + Europe — cost saving consistent with REPL)
+     - Logging: off (can be enabled later)
+   - S3 bucket policy updated to allow only the CloudFront OAC principal (replaces any existing policy)
+   - Writes `CF_DISTRIBUTION_ID` and `CF_DOMAIN` to `outputs.env`
+
+2. **DNS record** — create an alias/CNAME for `dcatch.hilldogs.net` pointing to the CloudFront domain.
+   - **Determine DNS provider first**: check whether `hilldogs.net` is managed in Route 53 or an external registrar.
+     - If Route 53: `aws route53 change-resource-record-sets` with an A ALIAS record.
+     - If external: manually add a CNAME `dcatch → CF_DOMAIN` in the registrar's DNS panel.
+   - DNS propagation can take minutes to hours; test with `curl -I https://dcatch.hilldogs.net` after propagation.
+
+3. **Follow phase-end checklist** — tests, summary, CLAUDE.md update, commit/push.
+
+### Phase 4 preview (deploy frontend)
+After Phase 3 the site resolves but shows nothing. Phase 4 builds and deploys the React frontend:
+```bash
+cd frontend && npm install && npm run build
+aws s3 sync dist/ s3://dcatch-hilldogs-frontend --delete
+aws cloudfront create-invalidation --distribution-id $CF_DISTRIBUTION_ID --paths "/*"
+```
+A `deploy.ps1` PowerShell script wrapping these steps will be created in Phase 4.
 
 ## Known Deferred Items
 
@@ -147,7 +173,9 @@ git config user.name "Gordon James"
 git clone https://github.com/gordonxjames/dcatch-hilldogs-net.git
 cd dcatch-hilldogs-net
 
-# 2. Recreate outputs.env
+# 2. Recreate outputs.env from template
+#    Template includes default email values (noreply@hilldogs.net / gjames@hilldogs.com).
+#    Edit ALERT_FROM_EMAIL / ALERT_TO_EMAIL before Phase 2 if different values needed.
 cp infra/outputs.env.template infra/outputs.env
 
 # 3. Phase 1 — Foundation
@@ -159,16 +187,18 @@ bash tests/run-all.sh --phase 1
 
 # 4. Phase 2 — Lambda & API Gateway
 pwsh infra/lambda/make-zip.ps1
-bash infra/provision-lambda.sh
+bash infra/provision-lambda.sh   # also attaches Cognito trigger + keep-warm rule
 bash infra/provision-apigw.sh
-pwsh infra/configure-lambda.ps1
+pwsh infra/configure-lambda.ps1  # reads ALERT_* from outputs.env
 bash tests/run-all.sh --phase 2
 
 # 5. Phase 3 — CloudFront & DNS (after Phase 3 scripts exist)
 # bash infra/provision-cloudfront.sh
+# # then create DNS record (see Next Phase section for details)
 # bash tests/run-all.sh --phase 3
 
 # 6. Phase 4 — Deploy frontend (after frontend exists)
-# cd frontend && npm install && pwsh deploy.ps1
+# cd frontend && npm install && npm run build
+# pwsh deploy.ps1   # syncs dist/ to S3 + invalidates CloudFront
 # bash tests/run-all.sh --phase 4
 ```

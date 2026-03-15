@@ -45,13 +45,20 @@ aws lambda wait function-active \
   --region "$REGION"
 
 # ─── 2. Cognito post-confirmation trigger ────────────────────────────────────
+# WARNING: aws cognito-idp update-user-pool resets any field not supplied to its
+# default value. Always pass MFA, SMS, and auto-verified-attributes together with
+# lambda-config to avoid silently wiping pool settings.
 
 echo "Attaching Cognito post-confirmation trigger..."
 
+EXTERNAL_ID="dcatch-cognito-sms"
 aws cognito-idp update-user-pool \
   --user-pool-id "$COGNITO_USER_POOL_ID" \
+  --region "$REGION" \
   --lambda-config "PostConfirmation=$LAMBDA_FUNCTION_ARN" \
-  --region "$REGION"
+  --mfa-configuration ON \
+  --sms-configuration "SnsCallerArn=$COGNITO_SMS_ROLE_ARN,ExternalId=$EXTERNAL_ID" \
+  --auto-verified-attributes email phone_number
 
 aws lambda add-permission \
   --function-name "$FUNCTION_NAME" \
