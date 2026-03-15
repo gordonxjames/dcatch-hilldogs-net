@@ -52,7 +52,7 @@ exports.handler = async (event) => {
   const ok  = (body) => ({ statusCode: 200, headers: cors(), body: JSON.stringify(body) });
   const err = (msg, code = 500) => ({ statusCode: code, headers: cors(), body: JSON.stringify({ error: msg }) });
 
-  if (path === '/v1/health' && method === 'GET') {
+  if (path === '/health' && method === 'GET') {
     return ok({ status: 'ok', service: 'dcatch-api', ts: new Date().toISOString() });
   }
 

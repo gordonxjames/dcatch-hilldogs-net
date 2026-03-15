@@ -77,11 +77,13 @@ Read from it to understand conventions; implement analogous but independent reso
 ## Completed Phases
 
 - **Phase 1** — VPC, Cognito, IAM, S3. See `PHASE_1_SUMMARY.md`.
+- **Phase 2** — Lambda, API Gateway, EventBridge keep-warm. See `PHASE_2_SUMMARY.md`.
 
-## Current State (end of Phase 1)
+## Current State (end of Phase 2)
 
-All foundational AWS resources are provisioned. The application is not yet reachable.
-Lambda and API Gateway do not yet exist. S3 bucket exists but has no content and no CloudFront in front of it.
+All foundational AWS resources plus Lambda and API Gateway are provisioned. The API is live at
+`https://0rsdzot34a.execute-api.us-east-2.amazonaws.com/v1`. The S3 bucket has no content and
+CloudFront/DNS not yet configured.
 
 | Resource | Name | ID |
 |---|---|---|
@@ -96,19 +98,22 @@ Lambda and API Gateway do not yet exist. S3 bucket exists but has no content and
 | IAM Role | dcatch-cognito-sms-role | arn:aws:iam::420030147545:role/dcatch-cognito-sms-role |
 | S3 Bucket | dcatch-hilldogs-frontend | dcatch-hilldogs-frontend |
 | ACM Cert (shared) | *.hilldogs.net (us-east-1) | arn:aws:acm:us-east-1:420030147545:certificate/36daeb2b-20e3-4910-bbe1-acac865f5adb |
+| Lambda | dcatch-api | arn:aws:lambda:us-east-2:420030147545:function:dcatch-api |
+| EventBridge Rule | dcatch-lambda-keepwarm | rate(5 minutes) |
+| REST API | dcatch-api-gw | 0rsdzot34a |
+| API Stage | v1 | https://0rsdzot34a.execute-api.us-east-2.amazonaws.com/v1 |
 
 Full values in `infra/outputs.env` (gitignored).
 
-## Next Phase — Phase 2: Lambda and API Gateway
+## Next Phase — Phase 3: CloudFront and DNS
 
 **Start of phase:** Create Jira tickets for each deliverable before writing any code.
 
-1. Run `pwsh infra/lambda/make-zip.ps1` to package `infra/lambda/`
-2. Run `bash infra/provision-lambda.sh` — creates `dcatch-api` Lambda in VPC, attaches post-confirmation trigger to Cognito pool `us-east-2_7fwfzEQZM`
-3. Run `bash infra/provision-apigw.sh` — creates REST API, Cognito authorizer, `/health` and `/{proxy+}` resources, deploys stage `v1`
-4. Run `pwsh infra/configure-lambda.ps1` — sets Lambda env vars (ALERT_FROM_EMAIL, ALERT_TO_EMAIL) from `outputs.env`
-5. Create CloudWatch keep-warm rule `dcatch-lambda-keepwarm` (EventBridge rule, every 5 minutes)
-6. Follow phase-end checklist below
+1. Run `bash infra/provision-cloudfront.sh` — creates CloudFront distribution in front of S3 bucket,
+   attaches ACM cert `arn:aws:acm:us-east-1:420030147545:certificate/36daeb2b-...` (wildcard *.hilldogs.net),
+   sets `dcatch.hilldogs.net` as the alternate domain name
+2. Update Route 53 (or external DNS) with an alias/CNAME for `dcatch.hilldogs.net` → CloudFront domain
+3. Follow phase-end checklist below
 
 ## Known Deferred Items
 
@@ -152,12 +157,12 @@ bash infra/provision-cognito.sh
 bash infra/provision-s3.sh
 bash tests/run-all.sh --phase 1
 
-# 4. Phase 2 — Lambda & API Gateway (after Phase 2 scripts exist)
-# pwsh infra/lambda/make-zip.ps1
-# bash infra/provision-lambda.sh
-# bash infra/provision-apigw.sh
-# pwsh infra/configure-lambda.ps1
-# bash tests/run-all.sh --phase 2
+# 4. Phase 2 — Lambda & API Gateway
+pwsh infra/lambda/make-zip.ps1
+bash infra/provision-lambda.sh
+bash infra/provision-apigw.sh
+pwsh infra/configure-lambda.ps1
+bash tests/run-all.sh --phase 2
 
 # 5. Phase 3 — CloudFront & DNS (after Phase 3 scripts exist)
 # bash infra/provision-cloudfront.sh

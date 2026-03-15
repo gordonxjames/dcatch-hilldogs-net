@@ -37,7 +37,8 @@ echo "  Run at: $(date)"
 echo "  Repo:   $REPO_ROOT"
 
 # Find and run phase test files in numeric order
-for test_file in $(ls "$SCRIPT_DIR"/phase*.sh 2>/dev/null | sort -V); do
+# Use a glob (not ls) to safely handle paths with spaces; sort numerically via rename trick
+while IFS= read -r -d '' test_file; do
   phase_num=$(basename "$test_file" | grep -oP '\d+')
   if [[ "$phase_num" -le "$MAX_PHASE" ]]; then
     echo ""
@@ -45,7 +46,7 @@ for test_file in $(ls "$SCRIPT_DIR"/phase*.sh 2>/dev/null | sort -V); do
     # Source the phase test (runs tests, accumulates into shared counters)
     source "$test_file"
   fi
-done
+done < <(printf '%s\0' "$SCRIPT_DIR"/phase*.sh | sort -zV)
 
 # Final summary across all phases
 print_summary "All Phases (up to Phase $MAX_PHASE)"

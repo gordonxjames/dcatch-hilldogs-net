@@ -25,19 +25,19 @@ section() {
 
 pass() {
   echo -e "  ${GREEN}[PASS]${RESET} $1"
-  ((PASS++))
+  PASS=$((PASS + 1))
 }
 
 fail() {
   local msg="$1"
   echo -e "  ${RED}[FAIL]${RESET} $msg"
-  ((FAIL++))
+  FAIL=$((FAIL + 1))
   FAILURES="${FAILURES}\n  [FAIL] ${CURRENT_SECTION}: ${msg}"
 }
 
 skip() {
   echo -e "  ${YELLOW}[SKIP]${RESET} $1"
-  ((SKIP++))
+  SKIP=$((SKIP + 1))
 }
 
 # ── Assertions ────────────────────────────────────────────────────────────────
