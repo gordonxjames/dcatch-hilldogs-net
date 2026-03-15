@@ -91,11 +91,13 @@ Read from it to understand conventions; implement analogous but independent reso
 - **Phase 1** — VPC, Cognito, IAM, S3. See `PHASE_1_SUMMARY.md`.
 - **Phase 2** — Lambda, API Gateway, EventBridge keep-warm. See `PHASE_2_SUMMARY.md`.
 - **Phase 3** — CloudFront OAC + distribution, S3 bucket policy, Route 53 DNS. See `PHASE_3_SUMMARY.md`.
+- **Phase 4** — React frontend build & deploy. See `PHASE_4_SUMMARY.md`.
 
-## Current State (end of Phase 3)
+## Current State (end of Phase 4)
 
-All infrastructure is provisioned. `https://dcatch.hilldogs.net` resolves and reaches CloudFront (returns
-403 — bucket is empty). The site will serve content after Phase 4 deploys the React frontend.
+All infrastructure is provisioned and the React frontend is live. `https://dcatch.hilldogs.net` serves
+the Delta Catcher app (amber theme, username-based auth with SMS MFA, account settings). 121/121
+cumulative tests pass.
 
 | Resource | Name | ID |
 |---|---|---|
@@ -121,63 +123,9 @@ All infrastructure is provisioned. `https://dcatch.hilldogs.net` resolves and re
 
 Full values in `infra/outputs.env` (gitignored).
 
-## Next Phase — Phase 4: Build and Deploy React Frontend
+## Next Phase — Phase 5: TBD
 
-**Start of phase:** Create Jira tickets for each deliverable before writing any code.
-
-### Deliverables
-
-1. **React frontend** — scaffold `frontend/` using Vite + React 18:
-   - Login page: two-panel layout per Frontend Design Decisions above
-   - Home page: protected route, "Welcome, [username]."
-   - Account Settings (`/settings`): username (read-only), email, phone, password
-   - Footer: identical structure to REPL, amber color scheme
-   - Auth flows: sign in, create account, verify, forgot password, reset password
-
-2. **`deploy.ps1`** — PowerShell script (reads `infra/outputs.env` for IDs):
-   ```powershell
-   # Reads CF_DISTRIBUTION_ID from infra/outputs.env, builds frontend, syncs to S3, invalidates cache
-   cd frontend; npm install; npm run build
-   aws s3 sync dist/ s3://dcatch-hilldogs-frontend --delete
-   aws cloudfront create-invalidation --distribution-id E1BFXVAS6JB4C4 --paths "/*"
-   ```
-
-3. **`tests/phase4.sh`** — verifies S3 has content, CloudFront serves `index.html` at root,
-   redirects HTTP → HTTPS, and `/login` returns 200 (SPA routing working).
-
-4. **Follow phase-end checklist.**
-
-### Implementation notes for Phase 4
-
-**Cognito / API config** — REPL uses a checked-in `frontend/src/config.js` (not `.env`) for pool ID,
-client ID, and API base URL. These are not secrets. Follow the same pattern:
-```js
-export const COGNITO_REGION    = 'us-east-2';
-export const COGNITO_POOL_ID   = 'us-east-2_7fwfzEQZM';
-export const COGNITO_CLIENT_ID = '38bvf5r3hs4mlfm2d3cu05b011';
-export const API_BASE          = 'https://0rsdzot34a.execute-api.us-east-2.amazonaws.com/v1';
-```
-
-**Auth package** — REPL uses `amazon-cognito-identity-js` v6 (confirmed). Use the same package;
-do not use `@aws-amplify/auth` or `aws-amplify`.
-
-**`frontend/` directory** — already exists on disk with empty `public/`, `src/auth/`,
-`src/components/`, `src/pages/` subdirectories (not tracked by git — empty dirs). Scaffold into
-this existing structure rather than creating from scratch.
-
-**HDC logo** — copy `hilldogs-logo.png` from `repl.hilldogs.net/frontend/public/hilldogs-logo.png`
-into `dcatch/frontend/public/hilldogs-logo.png` before building.
-
-**`deploy.ps1`** — must parse `CF_DISTRIBUTION_ID` from `infra/outputs.env` at runtime (not
-hardcoded) so the script works after a rebuild that produces a new distribution ID.
-
-**`tests/phase4.sh` scope** — auth flow testing requires live user accounts; limit automated
-tests to: S3 bucket has ≥1 object, CloudFront root returns HTTP 200, HTTP redirects to HTTPS,
-`/login` path returns 200 (SPA routing). Document this limitation in the test file header.
-
-**Reference**: `gordonxjames/repl-hilldogs-net` `frontend/` for component structure, auth hooks,
-CSS variable conventions. Implement analogous but independent code here (do not copy files directly).
-**CF distribution ID** for invalidation: `E1BFXVAS6JB4C4` (also in `outputs.env` as `CF_DISTRIBUTION_ID`).
+No next phase defined yet.
 
 ## Known Deferred Items
 
@@ -235,8 +183,7 @@ bash tests/run-all.sh --phase 2
 bash infra/provision-cloudfront.sh   # also creates Route 53 DNS record
 bash tests/run-all.sh --phase 3
 
-# 6. Phase 4 — Deploy frontend (after frontend exists)
-# cd frontend && npm install && npm run build
-# pwsh deploy.ps1   # syncs dist/ to S3 + invalidates CloudFront
-# bash tests/run-all.sh --phase 4
+# 6. Phase 4 — Deploy frontend
+pwsh deploy.ps1   # npm install + build + S3 sync + CF invalidation
+bash tests/run-all.sh --phase 4
 ```
