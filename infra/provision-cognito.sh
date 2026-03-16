@@ -28,8 +28,9 @@ EXTERNAL_ID="dcatch-cognito-sms"
 # Design decisions:
 #   - Username is the primary immutable identifier (no --username-attributes flag)
 #   - Email is an alias: users can sign in with either username or email
-#   - Email and phone are required, auto-verified attributes
-#   - SMS MFA: ON (mandatory for all users)
+#   - Email is the auto-verified attribute (account confirmation code sent to email)
+#   - Phone is required at signup but verified later in Account Settings to enable SMS MFA
+#   - SMS MFA: OPTIONAL — users enable it in Account Settings after verifying their phone
 #   - Cognito built-in email for verification codes (no SES needed)
 #   - Password: 8 chars min, upper + lower + numbers required
 
@@ -38,8 +39,8 @@ COGNITO_USER_POOL_ID=$(aws cognito-idp create-user-pool \
   --pool-name dcatch-user-pool \
   --region "$REGION" \
   --alias-attributes email \
-  --auto-verified-attributes email phone_number \
-  --mfa-configuration ON \
+  --auto-verified-attributes email \
+  --mfa-configuration OPTIONAL \
   --sms-configuration "SnsCallerArn=$COGNITO_SMS_ROLE_ARN,ExternalId=$EXTERNAL_ID" \
   --sms-authentication-message "Your Delta Catcher verification code is {####}" \
   --sms-verification-message "Your Delta Catcher verification code is {####}" \

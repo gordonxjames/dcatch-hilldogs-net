@@ -52,7 +52,7 @@ Delta Catcher is an investment analyst tool for modeling quantitative strategies
 | Region | us-east-2 (ACM cert in us-east-1 — existing wildcard) | Consistency with other HDC projects |
 | VPC CIDR | 10.1.0.0/16 | Avoids conflict with REPL (10.0.0.0/16) |
 | Cognito login | Username primary (immutable), email as alias | Users can change email; username stays stable |
-| MFA | SMS mandatory for all users | Security requirement |
+| MFA | SMS optional, enabled per-user via Account Settings | Mandatory MFA caused chicken-and-egg: phone must be verified to sign in with MFA, but sign-in is needed to verify phone. Optional MFA lets users register via email, then verify phone + enable MFA in Settings. |
 | User-facing email | Cognito built-in (no SES) | Free, no infrastructure needed |
 | Admin alert email | Lambda + SES — deferred (DCATCH-1) | No VPC route to SES yet; non-critical |
 | Lambda VPC | In VPC from day one | Ready for RDS in Phase 2; matches final architecture |

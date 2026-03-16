@@ -2,7 +2,7 @@
 ╔══════════════════════════════════════════╗
 ║   DCATCH Infrastructure Test Suite       ║
 ╚══════════════════════════════════════════╝
-  Run at: Sun, Mar 15, 2026  4:58:55 PM
+  Run at: Sun, Mar 15, 2026  5:56:48 PM
   Repo:   /c/Users/gordon/OneDrive - Hill Dogs Consulting/Documents/Development/dcatch.hilldogs.net
 
 ━━━ Phase 1 Tests ━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -57,10 +57,9 @@
 
 ── Cognito — User Pool ──
   [PASS] User pool name is dcatch-user-pool
-  [PASS] User pool MFA is ON
+  [PASS] User pool MFA is OPTIONAL
   [PASS] User pool has email alias attribute
   [PASS] Email is auto-verified
-  [PASS] Phone is auto-verified
   [PASS] Email attribute is required
   [PASS] Email attribute is mutable
   [PASS] Phone attribute is required
@@ -195,8 +194,8 @@
 ════════════════════════════════════════
  Results: All Phases (up to Phase 4)
 ════════════════════════════════════════
-  Total:  121
-  Passed: 121
+  Total:  120
+  Passed: 120
   Failed: 0
 
 All tests passed.

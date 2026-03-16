@@ -3,7 +3,14 @@
 // Full API routes added in Phase 2+.
 
 const { SESv2Client, SendEmailCommand } = require('@aws-sdk/client-sesv2');
-const ses = new SESv2Client({ region: 'us-east-1' });
+const { NodeHttpHandler } = require('@smithy/node-http-handler');
+
+// Short timeouts so the SES call fails fast when Lambda has no internet route (DCATCH-1).
+// Without these, the SDK hangs until Lambda times out (30s), breaking the post-confirmation trigger.
+const ses = new SESv2Client({
+  region: 'us-east-1',
+  requestHandler: new NodeHttpHandler({ connectionTimeout: 3000, socketTimeout: 3000 }),
+});
 
 exports.handler = async (event) => {
   // ── Cognito post-confirmation trigger ─────────────────────────────────────

@@ -163,6 +163,40 @@ export function verifyUserAttribute(attributeName, code) {
   });
 }
 
+// Returns { phone, phoneVerified, mfaEnabled } for the current user
+export function getUserMfaStatus() {
+  return new Promise((resolve, reject) => {
+    const user = userPool.getCurrentUser();
+    if (!user) { reject(new Error('Not authenticated')); return; }
+    user.getSession((err, session) => {
+      if (err || !session?.isValid()) { reject(err || new Error('Session invalid')); return; }
+      user.getUserData((err2, data) => {
+        if (err2) { reject(err2); return; }
+        const attrs = data.UserAttributes || [];
+        const phone = attrs.find(a => a.Name === 'phone_number')?.Value || '';
+        const phoneVerified = attrs.find(a => a.Name === 'phone_number_verified')?.Value === 'true';
+        const mfaEnabled = (data.UserMFASettingList || []).includes('SMS_MFA');
+        resolve({ phone, phoneVerified, mfaEnabled });
+      }, { bypassCache: true });
+    });
+  });
+}
+
+// Enable or disable SMS MFA for the current user
+export function setSmsMfaPreference(enabled) {
+  return new Promise((resolve, reject) => {
+    const user = userPool.getCurrentUser();
+    if (!user) { reject(new Error('Not authenticated')); return; }
+    user.getSession((err, session) => {
+      if (err || !session?.isValid()) { reject(err || new Error('Session invalid')); return; }
+      const smsMfaSettings = { Enabled: enabled, PreferredMfa: enabled };
+      user.setUserMfaPreference(smsMfaSettings, null, (err2) => {
+        if (err2) { reject(err2); } else { resolve(); }
+      });
+    });
+  });
+}
+
 export function changePassword(oldPassword, newPassword) {
   return new Promise((resolve, reject) => {
     const user = userPool.getCurrentUser();

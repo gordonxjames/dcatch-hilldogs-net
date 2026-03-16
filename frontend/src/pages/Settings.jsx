@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import {
   updateUserAttribute,
   verifyUserAttribute,
   changePassword,
+  getUserMfaStatus,
+  setSmsMfaPreference,
 } from '../auth/cognitoClient';
 
 function Section({ title, children }) {
@@ -27,10 +29,16 @@ function Field({ label, children }) {
 export default function Settings() {
   const { session } = useAuth();
 
+  // MFA status
+  const [mfaStatus, setMfaStatus]     = useState(null); // { phone, phoneVerified, mfaEnabled }
+  const [mfaLoading, setMfaLoading]   = useState(false);
+  const [mfaError, setMfaError]       = useState('');
+  const [mfaSuccess, setMfaSuccess]   = useState('');
+
   // Email section
   const [email, setEmail]             = useState('');
   const [emailCode, setEmailCode]     = useState('');
-  const [emailStep, setEmailStep]     = useState('edit'); // edit | verify
+  const [emailStep, setEmailStep]     = useState('edit');
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailError, setEmailError]   = useState('');
   const [emailSuccess, setEmailSuccess] = useState('');
@@ -38,7 +46,7 @@ export default function Settings() {
   // Phone section
   const [phone, setPhone]             = useState('');
   const [phoneCode, setPhoneCode]     = useState('');
-  const [phoneStep, setPhoneStep]     = useState('edit'); // edit | verify
+  const [phoneStep, setPhoneStep]     = useState('edit');
   const [phoneLoading, setPhoneLoading] = useState(false);
   const [phoneError, setPhoneError]   = useState('');
   const [phoneSuccess, setPhoneSuccess] = useState('');
@@ -50,6 +58,27 @@ export default function Settings() {
   const [pwLoading, setPwLoading]     = useState(false);
   const [pwError, setPwError]         = useState('');
   const [pwSuccess, setPwSuccess]     = useState('');
+
+  useEffect(() => {
+    getUserMfaStatus().then(setMfaStatus).catch(() => {});
+  }, []);
+
+  function refreshMfaStatus() {
+    getUserMfaStatus().then(setMfaStatus).catch(() => {});
+  }
+
+  async function handleToggleMfa(enable) {
+    setMfaError(''); setMfaSuccess(''); setMfaLoading(true);
+    try {
+      await setSmsMfaPreference(enable);
+      setMfaSuccess(enable ? 'SMS MFA enabled.' : 'SMS MFA disabled.');
+      refreshMfaStatus();
+    } catch (err) {
+      setMfaError(err.message || 'Failed to update MFA setting');
+    } finally {
+      setMfaLoading(false);
+    }
+  }
 
   async function handleEmailUpdate(e) {
     e.preventDefault();
@@ -71,8 +100,7 @@ export default function Settings() {
     try {
       await verifyUserAttribute('email', emailCode);
       setEmailStep('edit');
-      setEmail('');
-      setEmailCode('');
+      setEmail(''); setEmailCode('');
       setEmailSuccess('Email updated successfully.');
     } catch (err) {
       setEmailError(err.message || 'Verification failed');
@@ -87,7 +115,7 @@ export default function Settings() {
     try {
       await updateUserAttribute('phone_number', phone);
       setPhoneStep('verify');
-      setPhoneSuccess('Verification code sent via SMS to new number.');
+      setPhoneSuccess('SMS code sent to new number.');
     } catch (err) {
       setPhoneError(err.message || 'Failed to update phone');
     } finally {
@@ -100,10 +128,12 @@ export default function Settings() {
     setPhoneError(''); setPhoneLoading(true);
     try {
       await verifyUserAttribute('phone_number', phoneCode);
+      // Automatically enable MFA once phone is verified
+      try { await setSmsMfaPreference(true); } catch (_) { /* non-fatal */ }
       setPhoneStep('edit');
-      setPhone('');
-      setPhoneCode('');
-      setPhoneSuccess('Phone number updated successfully.');
+      setPhone(''); setPhoneCode('');
+      setPhoneSuccess('Phone verified and SMS MFA enabled.');
+      refreshMfaStatus();
     } catch (err) {
       setPhoneError(err.message || 'Verification failed');
     } finally {
@@ -136,6 +166,49 @@ export default function Settings() {
           <input type="text" value={session?.username || ''} disabled />
         </Field>
         <p className="note">Username is permanent and cannot be changed.</p>
+      </Section>
+
+      {/* Two-Factor Authentication */}
+      <Section title="Two-Factor Authentication">
+        {mfaStatus === null ? (
+          <p style={{ color: 'var(--neutral-500)', fontSize: 13 }}>Loading…</p>
+        ) : mfaStatus.mfaEnabled ? (
+          <div>
+            <p style={{ fontSize: 13, color: 'var(--success)', fontWeight: 600, marginBottom: 8 }}>
+              ✓ SMS MFA is active
+            </p>
+            <p style={{ fontSize: 13, color: 'var(--neutral-700)', marginBottom: 12 }}>
+              A verification code will be sent to your phone each time you sign in.
+            </p>
+            {mfaError && <p className="error-msg">{mfaError}</p>}
+            {mfaSuccess && <p className="success-msg">{mfaSuccess}</p>}
+            <button className="btn btn-outline btn-sm" disabled={mfaLoading}
+              onClick={() => handleToggleMfa(false)}>
+              {mfaLoading ? <span className="spinner" style={{ borderTopColor: 'var(--primary)' }} /> : 'Disable MFA'}
+            </button>
+          </div>
+        ) : mfaStatus.phoneVerified ? (
+          <div>
+            <p style={{ fontSize: 13, color: 'var(--neutral-700)', marginBottom: 12 }}>
+              Your phone number is verified. Enable SMS MFA to require a code each time you sign in.
+            </p>
+            {mfaError && <p className="error-msg">{mfaError}</p>}
+            {mfaSuccess && <p className="success-msg">{mfaSuccess}</p>}
+            <button className="btn btn-primary btn-sm" disabled={mfaLoading}
+              onClick={() => handleToggleMfa(true)}>
+              {mfaLoading ? <span className="spinner" /> : 'Enable SMS MFA'}
+            </button>
+          </div>
+        ) : (
+          <div>
+            <p style={{ fontSize: 13, color: 'var(--neutral-700)', marginBottom: 4 }}>
+              MFA is not active.
+            </p>
+            <p className="note">
+              To enable SMS MFA, verify your phone number in the Phone Number section below.
+            </p>
+          </div>
+        )}
       </Section>
 
       {/* Email */}
@@ -177,15 +250,17 @@ export default function Settings() {
       <Section title="Phone Number">
         {phoneStep === 'edit' ? (
           <form onSubmit={handlePhoneUpdate}>
-            <Field label="New Phone Number">
+            <Field label="Phone Number">
               <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
                 placeholder="+12125551234" required />
             </Field>
-            <p className="note" style={{ marginBottom: 12 }}>Include country code. Used for MFA.</p>
+            <p className="note" style={{ marginBottom: 12 }}>
+              Include country code (e.g. +1 for US). Verifying your phone enables SMS MFA.
+            </p>
             {phoneError && <p className="error-msg">{phoneError}</p>}
             {phoneSuccess && !phoneLoading && <p className="success-msg">{phoneSuccess}</p>}
             <button type="submit" className="btn btn-primary btn-sm" disabled={phoneLoading}>
-              {phoneLoading ? <span className="spinner" style={{ borderTopColor: 'white' }} /> : 'Update Phone'}
+              {phoneLoading ? <span className="spinner" style={{ borderTopColor: 'white' }} /> : 'Send Verification Code'}
             </button>
           </form>
         ) : (
@@ -195,10 +270,13 @@ export default function Settings() {
               <input type="text" value={phoneCode} onChange={e => setPhoneCode(e.target.value)}
                 placeholder="6-digit code" required autoFocus inputMode="numeric" />
             </Field>
+            <p className="note" style={{ marginBottom: 12 }}>
+              Confirming this code will verify your phone and enable SMS MFA.
+            </p>
             {phoneError && <p className="error-msg">{phoneError}</p>}
             <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
               <button type="submit" className="btn btn-primary btn-sm" disabled={phoneLoading}>
-                {phoneLoading ? <span className="spinner" style={{ borderTopColor: 'white' }} /> : 'Confirm'}
+                {phoneLoading ? <span className="spinner" style={{ borderTopColor: 'white' }} /> : 'Verify & Enable MFA'}
               </button>
               <button type="button" className="btn btn-outline btn-sm"
                 onClick={() => { setPhoneStep('edit'); setPhoneError(''); setPhoneSuccess(''); }}>

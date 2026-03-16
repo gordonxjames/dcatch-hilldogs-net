@@ -202,7 +202,7 @@ assert_eq "User pool name is dcatch-user-pool" "dcatch-user-pool" "$POOL_NAME"
 POOL_MFA=$(aws cognito-idp describe-user-pool \
   --user-pool-id "$COGNITO_USER_POOL_ID" --region "$REGION" \
   --query 'UserPool.MfaConfiguration' --output text 2>/dev/null || echo "")
-assert_eq "User pool MFA is ON" "ON" "$POOL_MFA"
+assert_eq "User pool MFA is OPTIONAL" "OPTIONAL" "$POOL_MFA"
 
 POOL_ALIAS=$(aws cognito-idp describe-user-pool \
   --user-pool-id "$COGNITO_USER_POOL_ID" --region "$REGION" \
@@ -213,7 +213,7 @@ AUTO_VERIFIED=$(aws cognito-idp describe-user-pool \
   --user-pool-id "$COGNITO_USER_POOL_ID" --region "$REGION" \
   --query 'UserPool.AutoVerifiedAttributes' --output text 2>/dev/null || echo "")
 assert_contains "Email is auto-verified" "$AUTO_VERIFIED" "email"
-assert_contains "Phone is auto-verified" "$AUTO_VERIFIED" "phone_number"
+# Phone is NOT auto-verified at signup; users verify phone in Account Settings to enable SMS MFA
 
 EMAIL_REQUIRED=$(aws cognito-idp describe-user-pool \
   --user-pool-id "$COGNITO_USER_POOL_ID" --region "$REGION" \
