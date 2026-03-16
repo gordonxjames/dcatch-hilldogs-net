@@ -2,48 +2,14 @@
 // dcatch-api Lambda — Phase 1 stub
 // Full API routes added in Phase 2+.
 
-const { SESv2Client, SendEmailCommand } = require('@aws-sdk/client-sesv2');
-const { NodeHttpHandler } = require('@smithy/node-http-handler');
-
-// Short timeouts so the SES call fails fast when Lambda has no internet route (DCATCH-1).
-// Without these, the SDK hangs until Lambda times out (30s), breaking the post-confirmation trigger.
-const ses = new SESv2Client({
-  region: 'us-east-1',
-  requestHandler: new NodeHttpHandler({ connectionTimeout: 3000, socketTimeout: 3000 }),
-});
-
 exports.handler = async (event) => {
   // ── Cognito post-confirmation trigger ─────────────────────────────────────
-  // NOTE: This SES call will silently fail until DCATCH-1 is resolved.
-  // The user account is already confirmed before this trigger fires, so
-  // failure here does not affect the end user's registration flow.
+  // New user registrations are visible in CloudWatch Logs and the Cognito console.
+  // No admin alert email — Lambda has no internet route (private VPC, no NAT).
   if (event.triggerSource === 'PostConfirmation_ConfirmSignUp') {
     const username = event.userName;
     const email    = event.request?.userAttributes?.email || '';
-    const bodyText = [
-      'New DCATCH Delta Catcher account created',
-      '='.repeat(50),
-      '',
-      `Username: ${username}`,
-      `Email:    ${email}`,
-      `Time:     ${new Date().toUTCString()}`,
-      `Pool:     ${event.userPoolId}`,
-    ].join('\n');
-    try {
-      await ses.send(new SendEmailCommand({
-        FromEmailAddress: process.env.ALERT_FROM_EMAIL,
-        Destination: { ToAddresses: [process.env.ALERT_TO_EMAIL] },
-        Content: {
-          Simple: {
-            Subject: { Data: 'DCATCH: New Account Created', Charset: 'UTF-8' },
-            Body:    { Text: { Data: bodyText,               Charset: 'UTF-8' } },
-          },
-        },
-      }));
-    } catch (err) {
-      // Non-fatal — log and continue. See DCATCH-1 for fix.
-      console.error('Admin alert email failed (DCATCH-1):', err.message);
-    }
+    console.log(`New account registered: username=${username} email=${email} pool=${event.userPoolId}`);
     return event;
   }
 
