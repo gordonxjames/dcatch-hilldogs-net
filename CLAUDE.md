@@ -133,6 +133,8 @@ No next phase defined yet.
 | Ticket | Summary |
 |---|---|
 | DCATCH-1 | Admin alert email — Lambda cannot reach SES from private subnet; IAM policy also missing. Deferred until RDS phase when VPC endpoint cost is justified. |
+| DCATCH-22 | Email delivery broken — SES is in sandbox mode (`ProductionAccess: false`). Cognito verification codes are silently dropped. Fix: verify gjames@hilldogs.com in SES console (us-east-1) for sandbox testing; long-term request SES production access. Note: hilldogs.net has no mail service; only hilldogs.com does. |
+| DCATCH-23 | SMS delivery broken — SNS SMS sandbox has no origination entities (no 10DLC/toll-free/short code). Cannot send to any number. Fix: request SNS SMS production access via AWS Service Quotas, or register a toll-free number. Blocks all MFA setup and testing. |
 
 ## Phase-End Checklist (every phase, in this order)
 
