@@ -133,6 +133,23 @@ export function confirmForgotPassword(username, code, newPassword) {
   });
 }
 
+// Explicitly request a verification code for an attribute (e.g. 'phone_number').
+// Required when the attribute is NOT in the pool's AutoVerifiedAttributes, because
+// updateAttributes() alone will not trigger code delivery in that case.
+export function getAttributeVerificationCode(attributeName) {
+  return new Promise((resolve, reject) => {
+    const user = userPool.getCurrentUser();
+    if (!user) { reject(new Error('Not authenticated')); return; }
+    user.getSession((err, session) => {
+      if (err || !session?.isValid()) { reject(err || new Error('Session invalid')); return; }
+      user.getAttributeVerificationCode(attributeName, {
+        onSuccess() { resolve(); },
+        onFailure(err2) { reject(err2); },
+      });
+    });
+  });
+}
+
 // Update a user attribute (e.g. 'email' or 'phone_number')
 export function updateUserAttribute(attributeName, value) {
   return new Promise((resolve, reject) => {

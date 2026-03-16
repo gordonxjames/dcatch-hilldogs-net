@@ -3,6 +3,7 @@ import { useAuth } from '../auth/AuthContext';
 import {
   updateUserAttribute,
   verifyUserAttribute,
+  getAttributeVerificationCode,
   changePassword,
   getUserMfaStatus,
   setSmsMfaPreference,
@@ -43,10 +44,10 @@ export default function Settings() {
   const [emailError, setEmailError]   = useState('');
   const [emailSuccess, setEmailSuccess] = useState('');
 
-  // Phone section
+  // Phone section — 'idle' | 'change' | 'verify'
   const [phone, setPhone]             = useState('');
   const [phoneCode, setPhoneCode]     = useState('');
-  const [phoneStep, setPhoneStep]     = useState('edit');
+  const [phoneStep, setPhoneStep]     = useState('idle');
   const [phoneLoading, setPhoneLoading] = useState(false);
   const [phoneError, setPhoneError]   = useState('');
   const [phoneSuccess, setPhoneSuccess] = useState('');
@@ -109,11 +110,28 @@ export default function Settings() {
     }
   }
 
+  // Send SMS code to the existing phone number on file
+  async function handleSendCodeToCurrentPhone() {
+    setPhoneError(''); setPhoneSuccess(''); setPhoneLoading(true);
+    try {
+      await getAttributeVerificationCode('phone_number');
+      setPhoneStep('verify');
+      setPhoneSuccess('SMS code sent to your current phone number.');
+    } catch (err) {
+      setPhoneError(err.message || 'Failed to send SMS code');
+    } finally {
+      setPhoneLoading(false);
+    }
+  }
+
+  // Update to a new phone number then send SMS code
   async function handlePhoneUpdate(e) {
     e.preventDefault();
     setPhoneError(''); setPhoneLoading(true);
     try {
       await updateUserAttribute('phone_number', phone);
+      // phone_number is not in AutoVerifiedAttributes, so we must explicitly request the code
+      await getAttributeVerificationCode('phone_number');
       setPhoneStep('verify');
       setPhoneSuccess('SMS code sent to new number.');
     } catch (err) {
@@ -130,7 +148,7 @@ export default function Settings() {
       await verifyUserAttribute('phone_number', phoneCode);
       // Automatically enable MFA once phone is verified
       try { await setSmsMfaPreference(true); } catch (_) { /* non-fatal */ }
-      setPhoneStep('edit');
+      setPhoneStep('idle');
       setPhone(''); setPhoneCode('');
       setPhoneSuccess('Phone verified and SMS MFA enabled.');
       refreshMfaStatus();
@@ -248,22 +266,58 @@ export default function Settings() {
 
       {/* Phone */}
       <Section title="Phone Number">
-        {phoneStep === 'edit' ? (
+        {phoneStep === 'idle' && (
+          <div>
+            {mfaStatus?.phone && (
+              <p style={{ fontSize: 13, color: 'var(--neutral-700)', marginBottom: 12 }}>
+                Current number: <strong>{mfaStatus.phone}</strong>
+                {mfaStatus.phoneVerified
+                  ? <span style={{ color: 'var(--success)', marginLeft: 8 }}>✓ verified</span>
+                  : <span style={{ color: 'var(--neutral-500)', marginLeft: 8 }}>not verified</span>}
+              </p>
+            )}
+            {phoneError && <p className="error-msg">{phoneError}</p>}
+            {phoneSuccess && <p className="success-msg">{phoneSuccess}</p>}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {!mfaStatus?.phoneVerified && mfaStatus?.phone && (
+                <button className="btn btn-primary btn-sm" disabled={phoneLoading}
+                  onClick={handleSendCodeToCurrentPhone}>
+                  {phoneLoading
+                    ? <span className="spinner" style={{ borderTopColor: 'white' }} />
+                    : 'Send Code to Verify Current Number'}
+                </button>
+              )}
+              <button className="btn btn-outline btn-sm"
+                onClick={() => { setPhoneStep('change'); setPhoneError(''); setPhoneSuccess(''); }}>
+                {mfaStatus?.phone ? 'Change Number' : 'Add Phone Number'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {phoneStep === 'change' && (
           <form onSubmit={handlePhoneUpdate}>
-            <Field label="Phone Number">
+            <Field label="New Phone Number">
               <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-                placeholder="+12125551234" required />
+                placeholder="+12125551234" required autoFocus />
             </Field>
             <p className="note" style={{ marginBottom: 12 }}>
-              Include country code (e.g. +1 for US). Verifying your phone enables SMS MFA.
+              Include country code (e.g. +1 for US). An SMS code will be sent to confirm.
             </p>
             {phoneError && <p className="error-msg">{phoneError}</p>}
-            {phoneSuccess && !phoneLoading && <p className="success-msg">{phoneSuccess}</p>}
-            <button type="submit" className="btn btn-primary btn-sm" disabled={phoneLoading}>
-              {phoneLoading ? <span className="spinner" style={{ borderTopColor: 'white' }} /> : 'Send Verification Code'}
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="submit" className="btn btn-primary btn-sm" disabled={phoneLoading}>
+                {phoneLoading ? <span className="spinner" style={{ borderTopColor: 'white' }} /> : 'Send Code'}
+              </button>
+              <button type="button" className="btn btn-outline btn-sm"
+                onClick={() => { setPhoneStep('idle'); setPhoneError(''); }}>
+                Cancel
+              </button>
+            </div>
           </form>
-        ) : (
+        )}
+
+        {phoneStep === 'verify' && (
           <form onSubmit={handlePhoneVerify}>
             {phoneSuccess && <p className="success-msg">{phoneSuccess}</p>}
             <Field label="SMS Verification Code">
@@ -274,12 +328,12 @@ export default function Settings() {
               Confirming this code will verify your phone and enable SMS MFA.
             </p>
             {phoneError && <p className="error-msg">{phoneError}</p>}
-            <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
               <button type="submit" className="btn btn-primary btn-sm" disabled={phoneLoading}>
                 {phoneLoading ? <span className="spinner" style={{ borderTopColor: 'white' }} /> : 'Verify & Enable MFA'}
               </button>
               <button type="button" className="btn btn-outline btn-sm"
-                onClick={() => { setPhoneStep('edit'); setPhoneError(''); setPhoneSuccess(''); }}>
+                onClick={() => { setPhoneStep('idle'); setPhoneError(''); setPhoneSuccess(''); }}>
                 Cancel
               </button>
             </div>
