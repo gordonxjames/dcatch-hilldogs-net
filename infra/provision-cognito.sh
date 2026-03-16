@@ -29,8 +29,9 @@ EXTERNAL_ID="dcatch-cognito-sms"
 #   - Username is the primary immutable identifier (no --username-attributes flag)
 #   - Email is an alias: users can sign in with either username or email
 #   - Email is the auto-verified attribute (account confirmation code sent to email)
-#   - Phone is required at signup but verified later in Account Settings to enable SMS MFA
-#   - SMS MFA: OPTIONAL — users enable it in Account Settings after verifying their phone
+#   - Phone is optional at signup; can be added/verified in Account Settings for future SMS MFA
+#   - MFA: OPTIONAL — TOTP (authenticator app) supported; SMS MFA deferred (DCATCH-23)
+#   - TOTP MFA enabled via set-user-pool-mfa-config after pool creation (see step 3 below)
 #   - Cognito built-in email for verification codes (no SES needed)
 #   - Password: 8 chars min, upper + lower + numbers required
 
@@ -64,7 +65,7 @@ COGNITO_USER_POOL_ID=$(aws cognito-idp create-user-pool \
     {
       "Name": "phone_number",
       "AttributeDataType": "String",
-      "Required": true,
+      "Required": false,
       "Mutable": true
     }
   ]' \
@@ -94,6 +95,19 @@ COGNITO_CLIENT_ID=$(aws cognito-idp create-user-pool-client \
   --query UserPoolClient.ClientId --output text)
 
 echo "  Client ID: $COGNITO_CLIENT_ID"
+
+# ─── 3. Enable TOTP MFA ──────────────────────────────────────────────────────
+# SMS MFA remains configured (DCATCH-23 blocks delivery); TOTP is the active MFA method.
+
+echo "Enabling TOTP MFA on user pool..."
+aws cognito-idp set-user-pool-mfa-config \
+  --user-pool-id "$COGNITO_USER_POOL_ID" \
+  --mfa-configuration OPTIONAL \
+  --software-token-mfa-configuration Enabled=true \
+  --sms-mfa-configuration "SmsAuthenticationMessage='Your Delta Catcher verification code is {####}',SmsConfiguration={SnsCallerArn=$COGNITO_SMS_ROLE_ARN,ExternalId=$EXTERNAL_ID,SnsRegion=$REGION}" \
+  --region "$REGION" > /dev/null
+
+echo "  TOTP MFA enabled."
 
 # ─── Write outputs ───────────────────────────────────────────────────────────
 

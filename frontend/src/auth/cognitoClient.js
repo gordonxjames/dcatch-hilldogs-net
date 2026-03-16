@@ -11,12 +11,33 @@ const userPool = new CognitoUserPool({
   ClientId:   COGNITO_CLIENT_ID,
 });
 
-// Returns { type: 'success', session } or { type: 'mfa', sendMfaCode }
+// Returns { type: 'success', session } | { type: 'mfa', mfaType, sendMfaCode }
+// mfaType: 'sms' | 'totp'
 // session shape: { idToken, username, sub }
 export function signIn(username, password) {
   return new Promise((resolve, reject) => {
     const user = new CognitoUser({ Username: username, Pool: userPool });
     const auth = new AuthenticationDetails({ Username: username, Password: password });
+
+    function buildMfaResolver(mfaType, challengeName) {
+      return {
+        type: 'mfa',
+        mfaType,
+        sendMfaCode: (code) => new Promise((res, rej) => {
+          user.sendMFACode(code, {
+            onSuccess(session) {
+              res({
+                idToken: session.getIdToken().getJwtToken(),
+                username,
+                sub: session.getIdToken().payload.sub,
+              });
+            },
+            onFailure(err) { rej(err); },
+          }, challengeName);
+        }),
+      };
+    }
+
     user.authenticateUser(auth, {
       onSuccess(session) {
         resolve({
@@ -29,23 +50,8 @@ export function signIn(username, password) {
         });
       },
       onFailure(err) { reject(err); },
-      mfaRequired() {
-        resolve({
-          type: 'mfa',
-          sendMfaCode: (code) => new Promise((res, rej) => {
-            user.sendMFACode(code, {
-              onSuccess(session) {
-                res({
-                  idToken: session.getIdToken().getJwtToken(),
-                  username,
-                  sub: session.getIdToken().payload.sub,
-                });
-              },
-              onFailure(err) { rej(err); },
-            });
-          }),
-        });
-      },
+      mfaRequired()  { resolve(buildMfaResolver('sms',  'SMS_MFA')); },
+      totpRequired() { resolve(buildMfaResolver('totp', 'SOFTWARE_TOKEN_MFA')); },
       newPasswordRequired() {
         reject(new Error('Password reset required — contact administrator'));
       },
@@ -53,13 +59,11 @@ export function signIn(username, password) {
   });
 }
 
-// username, email, phone (e.g. +12125551234), password
+// username, email, password — phone is optional
 export function signUp(username, email, phone, password) {
   return new Promise((resolve, reject) => {
-    const attrs = [
-      new CognitoUserAttribute({ Name: 'email', Value: email }),
-      new CognitoUserAttribute({ Name: 'phone_number', Value: phone }),
-    ];
+    const attrs = [new CognitoUserAttribute({ Name: 'email', Value: email })];
+    if (phone) attrs.push(new CognitoUserAttribute({ Name: 'phone_number', Value: phone }));
     userPool.signUp(username, password, attrs, null, (err, result) => {
       if (err) { reject(err); return; }
       resolve({ sub: result.userSub, username });
@@ -180,7 +184,7 @@ export function verifyUserAttribute(attributeName, code) {
   });
 }
 
-// Returns { phone, phoneVerified, mfaEnabled } for the current user
+// Returns { email, emailVerified, phone, phoneVerified, mfaEnabled } for the current user
 export function getUserMfaStatus() {
   return new Promise((resolve, reject) => {
     const user = userPool.getCurrentUser();
@@ -190,11 +194,60 @@ export function getUserMfaStatus() {
       user.getUserData((err2, data) => {
         if (err2) { reject(err2); return; }
         const attrs = data.UserAttributes || [];
+        const email = attrs.find(a => a.Name === 'email')?.Value || '';
+        const emailVerified = attrs.find(a => a.Name === 'email_verified')?.Value === 'true';
         const phone = attrs.find(a => a.Name === 'phone_number')?.Value || '';
         const phoneVerified = attrs.find(a => a.Name === 'phone_number_verified')?.Value === 'true';
-        const mfaEnabled = (data.UserMFASettingList || []).includes('SMS_MFA');
-        resolve({ phone, phoneVerified, mfaEnabled });
+        const mfaList = data.UserMFASettingList || [];
+        const mfaEnabled  = mfaList.includes('SMS_MFA');
+        const totpEnabled = mfaList.includes('SOFTWARE_TOKEN_MFA');
+        resolve({ email, emailVerified, phone, phoneVerified, mfaEnabled, totpEnabled });
       }, { bypassCache: true });
+    });
+  });
+}
+
+// Begin TOTP setup — returns the base32 secret key to enter in an authenticator app
+export function associateSoftwareToken() {
+  return new Promise((resolve, reject) => {
+    const user = userPool.getCurrentUser();
+    if (!user) { reject(new Error('Not authenticated')); return; }
+    user.getSession((err, session) => {
+      if (err || !session?.isValid()) { reject(err || new Error('Session invalid')); return; }
+      user.associateSoftwareToken({
+        associateSecretCode(secret) { resolve(secret); },
+        onFailure(err2) { reject(err2); },
+      });
+    });
+  });
+}
+
+// Verify the TOTP code entered after scanning the secret, completing setup
+export function verifySoftwareToken(totpCode) {
+  return new Promise((resolve, reject) => {
+    const user = userPool.getCurrentUser();
+    if (!user) { reject(new Error('Not authenticated')); return; }
+    user.getSession((err, session) => {
+      if (err || !session?.isValid()) { reject(err || new Error('Session invalid')); return; }
+      user.verifySoftwareToken(totpCode, 'Delta Catcher', {
+        onSuccess() { resolve(); },
+        onFailure(err2) { reject(err2); },
+      });
+    });
+  });
+}
+
+// Enable or disable TOTP MFA for the current user
+export function setTotpMfaPreference(enabled) {
+  return new Promise((resolve, reject) => {
+    const user = userPool.getCurrentUser();
+    if (!user) { reject(new Error('Not authenticated')); return; }
+    user.getSession((err, session) => {
+      if (err || !session?.isValid()) { reject(err || new Error('Session invalid')); return; }
+      const totpSettings = { Enabled: enabled, PreferredMfa: enabled };
+      user.setUserMfaPreference(null, totpSettings, (err2) => {
+        if (err2) { reject(err2); } else { resolve(); }
+      });
     });
   });
 }

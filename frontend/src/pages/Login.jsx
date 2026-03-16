@@ -38,6 +38,7 @@ export default function Login() {
   const [code, setCode]             = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [mfaResolver, setMfaResolver] = useState(null);
+  const [mfaType, setMfaType]         = useState('totp'); // 'sms' | 'totp'
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState('');
   const [success, setSuccess]       = useState('');
@@ -58,6 +59,7 @@ export default function Login() {
       } else {
         // MFA required
         setMfaResolver(() => result.sendMfaCode);
+        setMfaType(result.mfaType);
         setCode('');
         switchTab('mfa');
       }
@@ -214,10 +216,12 @@ export default function Login() {
               Two-Factor Authentication
             </p>
             <p style={{ fontSize: 13, color: 'var(--neutral-700)', marginBottom: 16 }}>
-              Enter the SMS code sent to your registered phone number.
+              {mfaType === 'totp'
+                ? 'Enter the 6-digit code from your authenticator app.'
+                : 'Enter the SMS code sent to your registered phone number.'}
             </p>
             <div className="form-group" style={{ marginBottom: 20 }}>
-              <label>SMS Code</label>
+              <label>{mfaType === 'totp' ? 'Authenticator Code' : 'SMS Code'}</label>
               <input type="text" value={code} onChange={e => setCode(e.target.value)}
                 placeholder="6-digit code" required autoFocus inputMode="numeric" />
             </div>
@@ -249,10 +253,10 @@ export default function Login() {
                 placeholder="you@example.com" required autoComplete="email" />
             </div>
             <div className="form-group" style={{ marginBottom: 14 }}>
-              <label>Phone Number</label>
+              <label>Phone Number <span style={{ color: 'var(--neutral-500)', fontWeight: 400 }}>(optional)</span></label>
               <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-                placeholder="+12125551234" required autoComplete="tel" />
-              <span className="note">Include country code (e.g. +1 for US). Required for MFA.</span>
+                placeholder="+12125551234" autoComplete="tel" />
+              <span className="note">Include country code (e.g. +1 for US). Can be added later in Account Settings.</span>
             </div>
             <div className="form-group" style={{ marginBottom: 14 }}>
               <label>Password</label>

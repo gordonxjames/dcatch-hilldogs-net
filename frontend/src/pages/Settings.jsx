@@ -6,7 +6,9 @@ import {
   getAttributeVerificationCode,
   changePassword,
   getUserMfaStatus,
-  setSmsMfaPreference,
+  associateSoftwareToken,
+  verifySoftwareToken,
+  setTotpMfaPreference,
 } from '../auth/cognitoClient';
 
 function Section({ title, children }) {
@@ -31,10 +33,17 @@ export default function Settings() {
   const { session } = useAuth();
 
   // MFA status
-  const [mfaStatus, setMfaStatus]     = useState(null); // { phone, phoneVerified, mfaEnabled }
+  const [mfaStatus, setMfaStatus]     = useState(null); // { email, phone, phoneVerified, mfaEnabled, totpEnabled }
   const [mfaLoading, setMfaLoading]   = useState(false);
   const [mfaError, setMfaError]       = useState('');
   const [mfaSuccess, setMfaSuccess]   = useState('');
+
+  // TOTP setup — 'idle' | 'setup' | 'verify'
+  const [totpStep, setTotpStep]       = useState('idle');
+  const [totpSecret, setTotpSecret]   = useState('');
+  const [totpCode, setTotpCode]       = useState('');
+  const [totpLoading, setTotpLoading] = useState(false);
+  const [totpError, setTotpError]     = useState('');
 
   // Email section
   const [email, setEmail]             = useState('');
@@ -68,14 +77,45 @@ export default function Settings() {
     getUserMfaStatus().then(setMfaStatus).catch(() => {});
   }
 
-  async function handleToggleMfa(enable) {
-    setMfaError(''); setMfaSuccess(''); setMfaLoading(true);
+  async function handleTotpSetup() {
+    setTotpError(''); setTotpLoading(true);
     try {
-      await setSmsMfaPreference(enable);
-      setMfaSuccess(enable ? 'SMS MFA enabled.' : 'SMS MFA disabled.');
+      const secret = await associateSoftwareToken();
+      setTotpSecret(secret);
+      setTotpCode('');
+      setTotpStep('setup');
+    } catch (err) {
+      setTotpError(err.message || 'Failed to start authenticator setup');
+    } finally {
+      setTotpLoading(false);
+    }
+  }
+
+  async function handleTotpVerify(e) {
+    e.preventDefault();
+    setTotpError(''); setTotpLoading(true);
+    try {
+      await verifySoftwareToken(totpCode);
+      await setTotpMfaPreference(true);
+      setTotpStep('idle');
+      setTotpSecret(''); setTotpCode('');
+      setMfaSuccess('Authenticator app set up and TOTP MFA enabled.');
       refreshMfaStatus();
     } catch (err) {
-      setMfaError(err.message || 'Failed to update MFA setting');
+      setTotpError(err.message || 'Verification failed — check the code and try again');
+    } finally {
+      setTotpLoading(false);
+    }
+  }
+
+  async function handleDisableTotp() {
+    setMfaError(''); setMfaSuccess(''); setMfaLoading(true);
+    try {
+      await setTotpMfaPreference(false);
+      setMfaSuccess('TOTP MFA disabled.');
+      refreshMfaStatus();
+    } catch (err) {
+      setMfaError(err.message || 'Failed to disable MFA');
     } finally {
       setMfaLoading(false);
     }
@@ -190,59 +230,94 @@ export default function Settings() {
       <Section title="Two-Factor Authentication">
         {mfaStatus === null ? (
           <p style={{ color: 'var(--neutral-500)', fontSize: 13 }}>Loading…</p>
-        ) : mfaStatus.mfaEnabled ? (
+        ) : mfaStatus.totpEnabled ? (
           <div>
             <p style={{ fontSize: 13, color: 'var(--success)', fontWeight: 600, marginBottom: 8 }}>
-              ✓ SMS MFA is active
+              ✓ Authenticator app MFA is active
             </p>
             <p style={{ fontSize: 13, color: 'var(--neutral-700)', marginBottom: 12 }}>
-              A verification code will be sent to your phone each time you sign in.
+              A code from your authenticator app is required each time you sign in.
             </p>
             {mfaError && <p className="error-msg">{mfaError}</p>}
             {mfaSuccess && <p className="success-msg">{mfaSuccess}</p>}
             <button className="btn btn-outline btn-sm" disabled={mfaLoading}
-              onClick={() => handleToggleMfa(false)}>
+              onClick={handleDisableTotp}>
               {mfaLoading ? <span className="spinner" style={{ borderTopColor: 'var(--primary)' }} /> : 'Disable MFA'}
             </button>
           </div>
-        ) : mfaStatus.phoneVerified ? (
+        ) : totpStep === 'idle' ? (
           <div>
             <p style={{ fontSize: 13, color: 'var(--neutral-700)', marginBottom: 12 }}>
-              Your phone number is verified. Enable SMS MFA to require a code each time you sign in.
+              MFA is not active. Set up an authenticator app (Google Authenticator, Authy, etc.)
+              to require a code each time you sign in.
             </p>
             {mfaError && <p className="error-msg">{mfaError}</p>}
             {mfaSuccess && <p className="success-msg">{mfaSuccess}</p>}
-            <button className="btn btn-primary btn-sm" disabled={mfaLoading}
-              onClick={() => handleToggleMfa(true)}>
-              {mfaLoading ? <span className="spinner" /> : 'Enable SMS MFA'}
+            {totpError && <p className="error-msg">{totpError}</p>}
+            <button className="btn btn-primary btn-sm" disabled={totpLoading}
+              onClick={handleTotpSetup}>
+              {totpLoading ? <span className="spinner" /> : 'Set Up Authenticator App'}
             </button>
           </div>
         ) : (
-          <div>
-            <p style={{ fontSize: 13, color: 'var(--neutral-700)', marginBottom: 4 }}>
-              MFA is not active.
+          <form onSubmit={handleTotpVerify}>
+            <p style={{ fontSize: 13, color: 'var(--neutral-700)', marginBottom: 8 }}>
+              In your authenticator app, add a new account and enter this secret key manually:
             </p>
-            <p className="note">
-              To enable SMS MFA, verify your phone number in the Phone Number section below.
+            <div style={{
+              fontFamily: 'monospace', fontSize: 14, fontWeight: 700, letterSpacing: 2,
+              background: 'var(--neutral-100)', border: '1px solid var(--neutral-200)',
+              borderRadius: 6, padding: '10px 14px', marginBottom: 12,
+              wordBreak: 'break-all', userSelect: 'all',
+            }}>
+              {totpSecret}
+            </div>
+            <p className="note" style={{ marginBottom: 12 }}>
+              Account name: <strong>Delta Catcher</strong>. Then enter the 6-digit code the app shows to confirm.
             </p>
-          </div>
+            <div className="form-group" style={{ marginBottom: 12 }}>
+              <label>Confirmation Code</label>
+              <input type="text" value={totpCode} onChange={e => setTotpCode(e.target.value)}
+                placeholder="6-digit code" required autoFocus inputMode="numeric" />
+            </div>
+            {totpError && <p className="error-msg">{totpError}</p>}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="submit" className="btn btn-primary btn-sm" disabled={totpLoading}>
+                {totpLoading ? <span className="spinner" style={{ borderTopColor: 'white' }} /> : 'Confirm & Enable MFA'}
+              </button>
+              <button type="button" className="btn btn-outline btn-sm"
+                onClick={() => { setTotpStep('idle'); setTotpError(''); setTotpSecret(''); }}>
+                Cancel
+              </button>
+            </div>
+          </form>
         )}
       </Section>
 
       {/* Email */}
       <Section title="Email Address">
         {emailStep === 'edit' ? (
-          <form onSubmit={handleEmailUpdate}>
-            <Field label="New Email Address">
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-                placeholder="new@example.com" required />
-            </Field>
-            {emailError && <p className="error-msg">{emailError}</p>}
-            {emailSuccess && !emailLoading && <p className="success-msg">{emailSuccess}</p>}
-            <button type="submit" className="btn btn-primary btn-sm" disabled={emailLoading}>
-              {emailLoading ? <span className="spinner" style={{ borderTopColor: 'white' }} /> : 'Update Email'}
-            </button>
-          </form>
+          <div>
+            {mfaStatus?.email && (
+              <p style={{ fontSize: 13, color: 'var(--neutral-700)', marginBottom: 12 }}>
+                Current email: <strong>{mfaStatus.email}</strong>
+                {mfaStatus.emailVerified
+                  ? <span style={{ color: 'var(--success)', marginLeft: 8 }}>✓ verified</span>
+                  : <span style={{ color: 'var(--neutral-500)', marginLeft: 8 }}>not verified</span>}
+              </p>
+            )}
+            <form onSubmit={handleEmailUpdate}>
+              <Field label="New Email Address">
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                  placeholder="new@example.com" required />
+              </Field>
+              {emailError && <p className="error-msg">{emailError}</p>}
+              {emailSuccess && !emailLoading && <p className="success-msg">{emailSuccess}</p>}
+              <button type="submit" className="btn btn-primary btn-sm" disabled={emailLoading}>
+                {emailLoading ? <span className="spinner" style={{ borderTopColor: 'white' }} /> : 'Update Email'}
+              </button>
+            </form>
+          </div>
         ) : (
           <form onSubmit={handleEmailVerify}>
             {emailSuccess && <p className="success-msg">{emailSuccess}</p>}
@@ -280,11 +355,8 @@ export default function Settings() {
             {phoneSuccess && <p className="success-msg">{phoneSuccess}</p>}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {!mfaStatus?.phoneVerified && mfaStatus?.phone && (
-                <button className="btn btn-primary btn-sm" disabled={phoneLoading}
-                  onClick={handleSendCodeToCurrentPhone}>
-                  {phoneLoading
-                    ? <span className="spinner" style={{ borderTopColor: 'white' }} />
-                    : 'Send Code to Verify Current Number'}
+                <button className="btn btn-primary btn-sm" disabled title="SMS verification not yet available (DCATCH-23)">
+                  Send Code to Verify Current Number
                 </button>
               )}
               <button className="btn btn-outline btn-sm"
