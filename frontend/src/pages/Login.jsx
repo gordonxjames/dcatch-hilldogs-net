@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import InfoTip from '../components/InfoTip';
 import {
   signIn, signUp, confirmSignUp,
   forgotPassword, confirmForgotPassword,
@@ -243,10 +244,9 @@ export default function Login() {
         {tab === 'register' && (
           <form onSubmit={handleRegister}>
             <div className="form-group" style={{ marginBottom: 14 }}>
-              <label>Username</label>
+              <label>Username <InfoTip content="Your username is permanent and cannot be changed after registration. Choose carefully." /></label>
               <input type="text" value={username} onChange={e => setUsername(e.target.value)}
                 placeholder="choose_a_username" required autoFocus autoComplete="username" />
-              <p className="note">Username cannot be changed after registration.</p>
             </div>
             <div className="form-group" style={{ marginBottom: 14 }}>
               <label>Email Address</label>
