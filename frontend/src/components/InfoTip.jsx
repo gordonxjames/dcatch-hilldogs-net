@@ -50,10 +50,12 @@ export default function InfoTip({ content, width = 300, position = 'below' }) {
           boxShadow:    '0 4px 16px rgba(0,0,0,0.12)',
           fontSize:     12,
           lineHeight:   1.6,
-          color:        'var(--neutral-700)',
-          textAlign:    'left',
-          fontWeight:   'normal',
-          whiteSpace:   'normal',
+          color:         'var(--neutral-700)',
+          textAlign:     'left',
+          fontWeight:    'normal',
+          whiteSpace:    'normal',
+          textTransform: 'none',
+          letterSpacing: 'normal',
         }}>
           {content}
         </div>
