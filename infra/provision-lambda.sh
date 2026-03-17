@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # provision-lambda.sh — Phase 2
-# Creates dcatch-api Lambda in VPC, attaches Cognito post-confirmation trigger,
-# and creates EventBridge keep-warm rule (every 5 minutes).
+# Creates dcatch-api Lambda in VPC and attaches Cognito post-confirmation trigger.
 # Run from repo root: bash infra/provision-lambda.sh
 
 set -euo pipefail
@@ -32,7 +31,7 @@ LAMBDA_FUNCTION_ARN=$(cd "$SCRIPT_DIR/lambda" && aws lambda create-function \
   --zip-file "fileb://lambda.zip" \
   --vpc-config "SubnetIds=$SUBNET_2A_ID,$SUBNET_2B_ID,SecurityGroupIds=$SG_LAMBDA_ID" \
   --timeout 30 \
-  --memory-size 256 \
+  --memory-size 128 \
   --region "$REGION" \
   --tags Project=DCATCH \
   --query FunctionArn --output text)
@@ -74,33 +73,6 @@ aws lambda add-permission \
   --region "$REGION" > /dev/null
 
 echo "  Cognito trigger attached."
-
-# ─── 3. EventBridge keep-warm rule ───────────────────────────────────────────
-
-echo "Creating EventBridge keep-warm rule (rate 5 minutes)..."
-
-RULE_ARN=$(aws events put-rule \
-  --name dcatch-lambda-keepwarm \
-  --schedule-expression "rate(5 minutes)" \
-  --state ENABLED \
-  --tags Key=Project,Value=DCATCH \
-  --region "$REGION" \
-  --query RuleArn --output text)
-
-aws events put-targets \
-  --rule dcatch-lambda-keepwarm \
-  --targets "Id=dcatch-api-keepwarm,Arn=$LAMBDA_FUNCTION_ARN" \
-  --region "$REGION" > /dev/null
-
-aws lambda add-permission \
-  --function-name "$FUNCTION_NAME" \
-  --statement-id dcatch-eventbridge-keepwarm \
-  --action lambda:InvokeFunction \
-  --principal events.amazonaws.com \
-  --source-arn "$RULE_ARN" \
-  --region "$REGION" > /dev/null
-
-echo "  Keep-warm rule ARN: $RULE_ARN"
 
 # ─── Write outputs ────────────────────────────────────────────────────────────
 

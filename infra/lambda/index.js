@@ -13,11 +13,6 @@ exports.handler = async (event) => {
     return event;
   }
 
-  // ── Keep-warm ping ────────────────────────────────────────────────────────
-  if (event.source === 'aws.events') {
-    return { statusCode: 200, body: 'warm' };
-  }
-
   // ── HTTP routing (API Gateway proxy) ─────────────────────────────────────
   const method = event.httpMethod;
   const path   = event.path || '';
