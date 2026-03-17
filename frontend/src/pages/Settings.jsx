@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useAuth } from '../auth/AuthContext';
+import InfoTip from '../components/InfoTip';
 import {
   updateUserAttribute,
   verifyUserAttribute,
@@ -23,7 +24,7 @@ function Section({ title, children }) {
 
 function Field({ label, children }) {
   return (
-    <div className="form-group" style={{ marginBottom: 12 }}>
+    <div className="form-group" style={{ marginBottom: 8 }}>
       <label>{label}</label>
       {children}
     </div>
@@ -220,10 +221,9 @@ setPhoneStep('idle');
 
       {/* Username — read-only */}
       <Section title="Username">
-        <Field label="Username">
+        <Field label={<>Username <InfoTip content="Username cannot be changed." /></>}>
           <input type="text" value={session?.username || ''} disabled />
         </Field>
-        <p className="note">Username is permanent and cannot be changed.</p>
       </Section>
 
       {/* Two-Factor Authentication */}
@@ -287,7 +287,7 @@ setPhoneStep('idle');
               </div>
               <p className="note" style={{ marginTop: 6 }}>Account name: <strong>Delta Catcher</strong></p>
             </details>
-            <div className="form-group" style={{ marginBottom: 12 }}>
+            <div className="form-group" style={{ marginBottom: 8 }}>
               <label>Confirmation Code</label>
               <input type="text" value={totpCode} onChange={e => setTotpCode(e.target.value)}
                 placeholder="6-digit code" required autoFocus inputMode="numeric" />
