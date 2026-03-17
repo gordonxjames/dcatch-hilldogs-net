@@ -11,6 +11,19 @@ const userPool = new CognitoUserPool({
   ClientId:   COGNITO_CLIENT_ID,
 });
 
+// Resolves with the current authenticated user and a valid session, or rejects.
+// Used internally to avoid repeating session-retrieval boilerplate in every function.
+function withSession() {
+  return new Promise((resolve, reject) => {
+    const user = userPool.getCurrentUser();
+    if (!user) { reject(new Error('Not authenticated')); return; }
+    user.getSession((err, session) => {
+      if (err || !session?.isValid()) { reject(err || new Error('Session invalid')); return; }
+      resolve({ user, session });
+    });
+  });
+}
+
 // Returns { type: 'success', session } | { type: 'mfa', mfaType, sendMfaCode }
 // mfaType: 'sms' | 'totp'
 // session shape: { idToken, username, sub }
@@ -101,14 +114,7 @@ export function getCurrentSession() {
 
 // Returns current IdToken string, silently refreshing if needed
 export function getIdToken() {
-  return new Promise((resolve, reject) => {
-    const user = userPool.getCurrentUser();
-    if (!user) { reject(new Error('No authenticated user')); return; }
-    user.getSession((err, session) => {
-      if (err || !session?.isValid()) { reject(err || new Error('Session invalid')); return; }
-      resolve(session.getIdToken().getJwtToken());
-    });
-  });
+  return withSession().then(({ session }) => session.getIdToken().getJwtToken());
 }
 
 export function signOut() {
@@ -116,7 +122,7 @@ export function signOut() {
   if (user) user.signOut();
 }
 
-// Sends a password-reset code to the registered email/phone
+// Sends a password-reset code to the registered email
 export function forgotPassword(username) {
   return new Promise((resolve, reject) => {
     const user = new CognitoUser({ Username: username, Pool: userPool });
@@ -138,144 +144,99 @@ export function confirmForgotPassword(username, code, newPassword) {
 }
 
 // Explicitly request a verification code for an attribute (e.g. 'phone_number').
-// Required when the attribute is NOT in the pool's AutoVerifiedAttributes, because
-// updateAttributes() alone will not trigger code delivery in that case.
+// Required when the attribute is NOT in AutoVerifiedAttributes — updateAttributes()
+// alone will not trigger code delivery in that case.
 export function getAttributeVerificationCode(attributeName) {
-  return new Promise((resolve, reject) => {
-    const user = userPool.getCurrentUser();
-    if (!user) { reject(new Error('Not authenticated')); return; }
-    user.getSession((err, session) => {
-      if (err || !session?.isValid()) { reject(err || new Error('Session invalid')); return; }
-      user.getAttributeVerificationCode(attributeName, {
-        onSuccess() { resolve(); },
-        onFailure(err2) { reject(err2); },
-      });
+  return withSession().then(({ user }) => new Promise((resolve, reject) => {
+    user.getAttributeVerificationCode(attributeName, {
+      onSuccess() { resolve(); },
+      onFailure(err) { reject(err); },
     });
-  });
+  }));
 }
 
 // Update a user attribute (e.g. 'email' or 'phone_number')
 export function updateUserAttribute(attributeName, value) {
-  return new Promise((resolve, reject) => {
-    const user = userPool.getCurrentUser();
-    if (!user) { reject(new Error('Not authenticated')); return; }
-    user.getSession((err, session) => {
-      if (err || !session?.isValid()) { reject(err || new Error('Session invalid')); return; }
-      const attrs = [new CognitoUserAttribute({ Name: attributeName, Value: value })];
-      user.updateAttributes(attrs, (err2) => {
-        if (err2) { reject(err2); } else { resolve(); }
-      });
-    });
-  });
+  return withSession().then(({ user }) => new Promise((resolve, reject) => {
+    user.updateAttributes(
+      [new CognitoUserAttribute({ Name: attributeName, Value: value })],
+      (err) => { if (err) reject(err); else resolve(); }
+    );
+  }));
 }
 
 // Confirm a pending attribute update with the verification code
 export function verifyUserAttribute(attributeName, code) {
-  return new Promise((resolve, reject) => {
-    const user = userPool.getCurrentUser();
-    if (!user) { reject(new Error('Not authenticated')); return; }
-    user.getSession((err, session) => {
-      if (err || !session?.isValid()) { reject(err || new Error('Session invalid')); return; }
-      user.verifyAttribute(attributeName, code, {
-        onSuccess() { resolve(); },
-        onFailure(err2) { reject(err2); },
-      });
+  return withSession().then(({ user }) => new Promise((resolve, reject) => {
+    user.verifyAttribute(attributeName, code, {
+      onSuccess() { resolve(); },
+      onFailure(err) { reject(err); },
     });
-  });
+  }));
 }
 
-// Returns { email, emailVerified, phone, phoneVerified, mfaEnabled } for the current user
+// Returns { email, emailVerified, phone, phoneVerified, mfaEnabled, totpEnabled }
 export function getUserMfaStatus() {
-  return new Promise((resolve, reject) => {
-    const user = userPool.getCurrentUser();
-    if (!user) { reject(new Error('Not authenticated')); return; }
-    user.getSession((err, session) => {
-      if (err || !session?.isValid()) { reject(err || new Error('Session invalid')); return; }
-      user.getUserData((err2, data) => {
-        if (err2) { reject(err2); return; }
-        const attrs = data.UserAttributes || [];
-        const email = attrs.find(a => a.Name === 'email')?.Value || '';
-        const emailVerified = attrs.find(a => a.Name === 'email_verified')?.Value === 'true';
-        const phone = attrs.find(a => a.Name === 'phone_number')?.Value || '';
-        const phoneVerified = attrs.find(a => a.Name === 'phone_number_verified')?.Value === 'true';
-        const mfaList = data.UserMFASettingList || [];
-        const mfaEnabled  = mfaList.includes('SMS_MFA');
-        const totpEnabled = mfaList.includes('SOFTWARE_TOKEN_MFA');
-        resolve({ email, emailVerified, phone, phoneVerified, mfaEnabled, totpEnabled });
-      }, { bypassCache: true });
-    });
-  });
+  return withSession().then(({ user }) => new Promise((resolve, reject) => {
+    user.getUserData((err, data) => {
+      if (err) { reject(err); return; }
+      const attrs = data.UserAttributes || [];
+      const get = (name) => attrs.find(a => a.Name === name)?.Value;
+      const mfaList = data.UserMFASettingList || [];
+      resolve({
+        email:         get('email') || '',
+        emailVerified: get('email_verified') === 'true',
+        phone:         get('phone_number') || '',
+        phoneVerified: get('phone_number_verified') === 'true',
+        mfaEnabled:    mfaList.includes('SMS_MFA'),
+        totpEnabled:   mfaList.includes('SOFTWARE_TOKEN_MFA'),
+      });
+    }, { bypassCache: true });
+  }));
 }
 
 // Begin TOTP setup — returns the base32 secret key to enter in an authenticator app
 export function associateSoftwareToken() {
-  return new Promise((resolve, reject) => {
-    const user = userPool.getCurrentUser();
-    if (!user) { reject(new Error('Not authenticated')); return; }
-    user.getSession((err, session) => {
-      if (err || !session?.isValid()) { reject(err || new Error('Session invalid')); return; }
-      user.associateSoftwareToken({
-        associateSecretCode(secret) { resolve(secret); },
-        onFailure(err2) { reject(err2); },
-      });
+  return withSession().then(({ user }) => new Promise((resolve, reject) => {
+    user.associateSoftwareToken({
+      associateSecretCode(secret) { resolve(secret); },
+      onFailure(err) { reject(err); },
     });
-  });
+  }));
 }
 
 // Verify the TOTP code entered after scanning the secret, completing setup
 export function verifySoftwareToken(totpCode) {
-  return new Promise((resolve, reject) => {
-    const user = userPool.getCurrentUser();
-    if (!user) { reject(new Error('Not authenticated')); return; }
-    user.getSession((err, session) => {
-      if (err || !session?.isValid()) { reject(err || new Error('Session invalid')); return; }
-      user.verifySoftwareToken(totpCode, 'Delta Catcher', {
-        onSuccess() { resolve(); },
-        onFailure(err2) { reject(err2); },
-      });
+  return withSession().then(({ user }) => new Promise((resolve, reject) => {
+    user.verifySoftwareToken(totpCode, 'Delta Catcher', {
+      onSuccess() { resolve(); },
+      onFailure(err) { reject(err); },
     });
-  });
+  }));
 }
 
 // Enable or disable TOTP MFA for the current user
 export function setTotpMfaPreference(enabled) {
-  return new Promise((resolve, reject) => {
-    const user = userPool.getCurrentUser();
-    if (!user) { reject(new Error('Not authenticated')); return; }
-    user.getSession((err, session) => {
-      if (err || !session?.isValid()) { reject(err || new Error('Session invalid')); return; }
-      const totpSettings = { Enabled: enabled, PreferredMfa: enabled };
-      user.setUserMfaPreference(null, totpSettings, (err2) => {
-        if (err2) { reject(err2); } else { resolve(); }
-      });
+  return withSession().then(({ user }) => new Promise((resolve, reject) => {
+    user.setUserMfaPreference(null, { Enabled: enabled, PreferredMfa: enabled }, (err) => {
+      if (err) reject(err); else resolve();
     });
-  });
+  }));
 }
 
 // Enable or disable SMS MFA for the current user
 export function setSmsMfaPreference(enabled) {
-  return new Promise((resolve, reject) => {
-    const user = userPool.getCurrentUser();
-    if (!user) { reject(new Error('Not authenticated')); return; }
-    user.getSession((err, session) => {
-      if (err || !session?.isValid()) { reject(err || new Error('Session invalid')); return; }
-      const smsMfaSettings = { Enabled: enabled, PreferredMfa: enabled };
-      user.setUserMfaPreference(smsMfaSettings, null, (err2) => {
-        if (err2) { reject(err2); } else { resolve(); }
-      });
+  return withSession().then(({ user }) => new Promise((resolve, reject) => {
+    user.setUserMfaPreference({ Enabled: enabled, PreferredMfa: enabled }, null, (err) => {
+      if (err) reject(err); else resolve();
     });
-  });
+  }));
 }
 
 export function changePassword(oldPassword, newPassword) {
-  return new Promise((resolve, reject) => {
-    const user = userPool.getCurrentUser();
-    if (!user) { reject(new Error('Not authenticated')); return; }
-    user.getSession((err, session) => {
-      if (err || !session?.isValid()) { reject(err || new Error('Session invalid')); return; }
-      user.changePassword(oldPassword, newPassword, (err2) => {
-        if (err2) { reject(err2); } else { resolve(); }
-      });
+  return withSession().then(({ user }) => new Promise((resolve, reject) => {
+    user.changePassword(oldPassword, newPassword, (err) => {
+      if (err) reject(err); else resolve();
     });
-  });
+  }));
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tests/phase2.sh — Phase 2 infrastructure tests
-# Verifies: Lambda function, Cognito trigger, EventBridge keep-warm rule,
+# Verifies: Lambda function, Cognito trigger,
 #           API Gateway (REST API, authorizer, /health, /{proxy+}), HTTP health check.
 # No external dependencies beyond AWS CLI and curl.
 #
@@ -51,7 +51,7 @@ assert_eq "Lambda timeout is 30s" "30" "$LAMBDA_TIMEOUT"
 LAMBDA_MEMORY=$(aws lambda get-function-configuration \
   --function-name "$LAMBDA_FUNCTION_NAME" --region "$REGION" \
   --query MemorySize --output text 2>/dev/null || echo "")
-assert_eq "Lambda memory is 256 MB" "256" "$LAMBDA_MEMORY"
+assert_eq "Lambda memory is 128 MB" "128" "$LAMBDA_MEMORY"
 
 LAMBDA_ARN=$(aws lambda get-function-configuration \
   --function-name "$LAMBDA_FUNCTION_NAME" --region "$REGION" \
@@ -92,24 +92,6 @@ TRIGGER_ARN=$(aws cognito-idp describe-user-pool \
   --user-pool-id "$COGNITO_USER_POOL_ID" --region "$REGION" \
   --query 'UserPool.LambdaConfig.PostConfirmation' --output text 2>/dev/null || echo "")
 assert_eq "Cognito post-confirmation trigger set to Lambda" "$LAMBDA_FUNCTION_ARN" "$TRIGGER_ARN"
-
-# ═══════════════════════════════════════════════════════════════════════════════
-section "EventBridge — keep-warm rule"
-
-RULE_STATE=$(aws events describe-rule \
-  --name dcatch-lambda-keepwarm --region "$REGION" \
-  --query State --output text 2>/dev/null || echo "")
-assert_eq "Keep-warm rule is ENABLED" "ENABLED" "$RULE_STATE"
-
-RULE_SCHEDULE=$(aws events describe-rule \
-  --name dcatch-lambda-keepwarm --region "$REGION" \
-  --query ScheduleExpression --output text 2>/dev/null || echo "")
-assert_eq "Keep-warm rule schedule is rate(5 minutes)" "rate(5 minutes)" "$RULE_SCHEDULE"
-
-RULE_TARGET=$(aws events list-targets-by-rule \
-  --rule dcatch-lambda-keepwarm --region "$REGION" \
-  --query 'Targets[0].Arn' --output text 2>/dev/null || echo "")
-assert_eq "Keep-warm rule targets Lambda" "$LAMBDA_FUNCTION_ARN" "$RULE_TARGET"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 section "API Gateway — REST API"

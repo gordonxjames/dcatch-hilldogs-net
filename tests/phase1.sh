@@ -228,7 +228,7 @@ assert_eq "Email attribute is mutable" "True" "$EMAIL_MUTABLE"
 PHONE_REQUIRED=$(aws cognito-idp describe-user-pool \
   --user-pool-id "$COGNITO_USER_POOL_ID" --region "$REGION" \
   --query 'UserPool.SchemaAttributes[?Name==`phone_number`].Required' --output text 2>/dev/null || echo "")
-assert_eq "Phone attribute is required" "True" "$PHONE_REQUIRED"
+assert_eq "Phone attribute is not required (optional)" "False" "$PHONE_REQUIRED"
 
 PHONE_MUTABLE=$(aws cognito-idp describe-user-pool \
   --user-pool-id "$COGNITO_USER_POOL_ID" --region "$REGION" \
