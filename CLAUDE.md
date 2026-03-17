@@ -52,9 +52,9 @@ Delta Catcher is an investment analyst tool for modeling quantitative strategies
 | Region | us-east-2 (ACM cert in us-east-1 — existing wildcard) | Consistency with other HDC projects |
 | VPC CIDR | 10.1.0.0/16 | Avoids conflict with REPL (10.0.0.0/16) |
 | Cognito login | Username primary (immutable), email as alias | Users can change email; username stays stable |
-| MFA | SMS optional, enabled per-user via Account Settings | Mandatory MFA caused chicken-and-egg: phone must be verified to sign in with MFA, but sign-in is needed to verify phone. Optional MFA lets users register via email, then verify phone + enable MFA in Settings. |
-| User-facing email | Cognito built-in (no SES) | Free, no infrastructure needed |
-| Admin alert email | Lambda + SES — deferred (DCATCH-1) | No VPC route to SES yet; non-critical |
+| MFA | TOTP optional + SMS optional, enabled per-user via Account Settings | Mandatory MFA caused chicken-and-egg: phone must be verified to sign in with MFA, but sign-in is needed to verify phone. Optional MFA lets users register via email, then enable TOTP (or SMS when unblocked) in Settings. |
+| User-facing email | Cognito built-in (no SES) | Free, no infrastructure needed. Cognito uses its own managed SES — not affected by account SES sandbox status. |
+| Admin alert email | Dropped — CloudWatch Logs + Cognito console sufficient | Lambda has no internet route (private VPC, no NAT). SES call was removed from PostConfirmation trigger. |
 | Lambda VPC | In VPC from day one | Ready for RDS in Phase 2; matches final architecture |
 | NAT gateway | None | Lambda only needs intra-VPC access; cost saving |
 | Tagging | `Project=DCATCH` on all resources | Consistent with HDC convention |
@@ -94,11 +94,11 @@ Read from it to understand conventions; implement analogous but independent reso
 - **Phase 3** — CloudFront OAC + distribution, S3 bucket policy, Route 53 DNS. See `PHASE_3_SUMMARY.md`.
 - **Phase 4** — React frontend build & deploy. See `PHASE_4_SUMMARY.md`.
 
-## Current State (end of Phase 4)
+## Current State (release 0.2 — post Phase 4)
 
 All infrastructure is provisioned and the React frontend is live. `https://dcatch.hilldogs.net` serves
-the Delta Catcher app (amber theme, username-based auth with SMS MFA, account settings). 121/121
-cumulative tests pass.
+the Delta Catcher app (amber theme, username-based auth, optional TOTP MFA, account settings, phone
+optional). 121/121 cumulative tests pass. End-to-end registration + email verification confirmed working.
 
 | Resource | Name | ID |
 |---|---|---|
@@ -107,8 +107,8 @@ cumulative tests pass.
 | Subnet us-east-2b | dcatch-private-2b | subnet-08999ff637c2b93cf |
 | Security Group | dcatch-sg-lambda | sg-0418a7cce18963011 |
 | Security Group | dcatch-sg-db | sg-05970d52df18fde0a |
-| Cognito User Pool | dcatch-user-pool | us-east-2_7fwfzEQZM |
-| Cognito App Client | dcatch-web-client | 38bvf5r3hs4mlfm2d3cu05b011 |
+| Cognito User Pool | dcatch-user-pool | us-east-2_4SqnYbW6y |
+| Cognito App Client | dcatch-web-client | akhb5c7esdmiiju1aklovdeb4 |
 | IAM Role | dcatch-lambda-role | arn:aws:iam::420030147545:role/dcatch-lambda-role |
 | IAM Role | dcatch-cognito-sms-role | arn:aws:iam::420030147545:role/dcatch-cognito-sms-role |
 | S3 Bucket | dcatch-hilldogs-frontend | dcatch-hilldogs-frontend |
@@ -132,9 +132,7 @@ No next phase defined yet.
 
 | Ticket | Summary |
 |---|---|
-| DCATCH-1 | Admin alert email — Lambda cannot reach SES from private subnet; IAM policy also missing. Deferred until RDS phase when VPC endpoint cost is justified. |
-| DCATCH-22 | Email delivery broken — SES is in sandbox mode (`ProductionAccess: false`). Cognito verification codes are silently dropped. Fix: verify gjames@hilldogs.com in SES console (us-east-1) for sandbox testing; long-term request SES production access. Note: hilldogs.net has no mail service; only hilldogs.com does. |
-| DCATCH-23 | SMS delivery broken — SNS SMS sandbox has no origination entities (no 10DLC/toll-free/short code). Cannot send to any number. Fix: request SNS SMS production access via AWS Service Quotas, or register a toll-free number. Blocks all MFA setup and testing. |
+| DCATCH-23 | SMS delivery broken — SNS SMS sandbox has no origination entities (no 10DLC/toll-free/short code). Cannot send to any number. Fix: request SNS SMS production access via AWS Service Quotas, or register a toll-free number. Blocks SMS MFA and phone verification. TOTP MFA is available as a workaround. |
 
 ## Phase-End Checklist (every phase, in this order)
 
