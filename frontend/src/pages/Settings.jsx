@@ -145,6 +145,7 @@ export default function Settings() {
       setEmailStep('edit');
       setEmail(''); setEmailCode('');
       setEmailSuccess('Email updated successfully.');
+      refreshMfaStatus();
     } catch (err) {
       setEmailError(err.message || 'Verification failed');
     } finally {
