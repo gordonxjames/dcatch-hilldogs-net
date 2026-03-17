@@ -31,8 +31,8 @@ export default function Footer() {
       gap: 16,
       flexShrink: 0,
     }}>
-      <span style={{ whiteSpace: 'nowrap' }}>
-        &copy; {year} Hill Dogs Consulting. All Rights Reserved.
+      <span>
+        &copy; {year} Hill Dogs Consulting.<br />All Rights Reserved.
       </span>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
