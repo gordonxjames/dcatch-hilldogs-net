@@ -214,8 +214,19 @@ nav .nav-settings:hover {
 
 /* ── LOGIN LAYOUT ── */
 @media (max-width: 760px) {
-  .login-promo { display: none !important; }
-  .login-form-panel { padding: 40px 16px !important; }
+  .login-bg { flex-direction: column; }
+
+  .login-promo {
+    flex: 0 0 auto !important;
+    padding: 20px 24px !important;
+    gap: 10px !important;
+  }
+  .login-promo img   { width: 72px !important; }
+  .login-promo p:first-child { font-size: 18px !important; margin-bottom: 2px !important; }
+  .login-promo p:last-child  { font-size: 12px !important; }
+
+  .login-form-panel { padding: 20px 16px !important; }
+  .login-card       { padding: 28px 24px !important; }
 }
 
 /* ── MISC ── */

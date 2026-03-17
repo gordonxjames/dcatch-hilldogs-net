@@ -141,7 +141,7 @@ export default function Login() {
   }
 
   return (
-    <div style={loginBg}>
+    <div className="login-bg" style={loginBg}>
       {/* ── Promo panel ── */}
       <div className="login-promo" style={promoPanel}>
         <a href="https://www.hilldogs.com" target="_blank" rel="noreferrer"
@@ -162,7 +162,7 @@ export default function Login() {
 
       {/* ── Form panel ── */}
       <div className="login-form-panel" style={formPanel}>
-      <div style={cardStyle}>
+      <div className="login-card" style={cardStyle}>
 
         {/* Tabs (only show signin/register when not in flow tabs) */}
         {(tab === 'signin' || tab === 'register') && (
