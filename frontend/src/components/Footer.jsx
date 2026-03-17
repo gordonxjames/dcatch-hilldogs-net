@@ -50,13 +50,20 @@ export default function Footer() {
         ))}
       </div>
 
-      <a href="https://www.hilldogs.net/privacy.html" target="_blank" rel="noreferrer"
-        style={{ color: 'rgba(255,255,255,.65)', textDecoration: 'none', whiteSpace: 'nowrap',
-                 transition: 'color .15s' }}
-        onMouseEnter={e => e.currentTarget.style.color = '#fff'}
-        onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,.65)'}>
-        Privacy Policy
-      </a>
+      <div style={{ display: 'flex', gap: 16 }}>
+        {[
+          { href: 'https://www.hilldogs.net/termsofuse.html', label: 'Terms'   },
+          { href: 'https://www.hilldogs.net/privacy.html',    label: 'Privacy' },
+        ].map(({ href, label }) => (
+          <a key={label} href={href} target="_blank" rel="noreferrer"
+            style={{ color: 'rgba(255,255,255,.65)', textDecoration: 'none', whiteSpace: 'nowrap',
+                     transition: 'color .15s' }}
+            onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+            onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,.65)'}>
+            {label}
+          </a>
+        ))}
+      </div>
     </footer>
   );
 }
