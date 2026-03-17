@@ -246,6 +246,7 @@ export default function Login() {
               <label>Username</label>
               <input type="text" value={username} onChange={e => setUsername(e.target.value)}
                 placeholder="choose_a_username" required autoFocus autoComplete="username" />
+              <p className="note">Username cannot be changed after registration.</p>
             </div>
             <div className="form-group" style={{ marginBottom: 14 }}>
               <label>Email Address</label>
