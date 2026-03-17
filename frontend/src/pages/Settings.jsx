@@ -188,8 +188,7 @@ export default function Settings() {
     try {
       await verifyUserAttribute('phone_number', phoneCode);
       // Automatically enable MFA once phone is verified
-      try { await setSmsMfaPreference(true); } catch (_) { /* non-fatal */ }
-      setPhoneStep('idle');
+setPhoneStep('idle');
       setPhone(''); setPhoneCode('');
       setPhoneSuccess('Phone verified and SMS MFA enabled.');
       refreshMfaStatus();

@@ -177,7 +177,6 @@ bash tests/run-all.sh --phase 1
 pwsh infra/lambda/make-zip.ps1
 bash infra/provision-lambda.sh   # also attaches Cognito trigger + keep-warm rule
 bash infra/provision-apigw.sh
-pwsh infra/configure-lambda.ps1  # reads ALERT_* from outputs.env
 bash tests/run-all.sh --phase 2
 
 # 5. Phase 3 — CloudFront & DNS
