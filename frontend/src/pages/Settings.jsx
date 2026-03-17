@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { useAuth } from '../auth/AuthContext';
 import {
   updateUserAttribute,
@@ -261,20 +262,32 @@ export default function Settings() {
           </div>
         ) : (
           <form onSubmit={handleTotpVerify}>
-            <p style={{ fontSize: 13, color: 'var(--neutral-700)', marginBottom: 8 }}>
-              In your authenticator app, add a new account and enter this secret key manually:
+            <p style={{ fontSize: 13, color: 'var(--neutral-700)', marginBottom: 12 }}>
+              Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.),
+              then enter the 6-digit code to confirm.
             </p>
-            <div style={{
-              fontFamily: 'monospace', fontSize: 14, fontWeight: 700, letterSpacing: 2,
-              background: 'var(--neutral-100)', border: '1px solid var(--neutral-200)',
-              borderRadius: 6, padding: '10px 14px', marginBottom: 12,
-              wordBreak: 'break-all', userSelect: 'all',
-            }}>
-              {totpSecret}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+              <div style={{ padding: 12, background: '#fff', border: '1px solid var(--neutral-200)', borderRadius: 8, display: 'inline-block' }}>
+                <QRCodeSVG
+                  value={`otpauth://totp/Delta%20Catcher:${encodeURIComponent(session?.username || '')}?secret=${totpSecret}&issuer=Delta%20Catcher`}
+                  size={180}
+                />
+              </div>
             </div>
-            <p className="note" style={{ marginBottom: 12 }}>
-              Account name: <strong>Delta Catcher</strong>. Then enter the 6-digit code the app shows to confirm.
-            </p>
+            <details style={{ marginBottom: 12 }}>
+              <summary style={{ fontSize: 12, color: 'var(--neutral-500)', cursor: 'pointer' }}>
+                Can't scan? Enter the key manually
+              </summary>
+              <div style={{
+                fontFamily: 'monospace', fontSize: 13, fontWeight: 700, letterSpacing: 2,
+                background: 'var(--neutral-100)', border: '1px solid var(--neutral-200)',
+                borderRadius: 6, padding: '10px 14px', marginTop: 8,
+                wordBreak: 'break-all', userSelect: 'all',
+              }}>
+                {totpSecret}
+              </div>
+              <p className="note" style={{ marginTop: 6 }}>Account name: <strong>Delta Catcher</strong></p>
+            </details>
             <div className="form-group" style={{ marginBottom: 12 }}>
               <label>Confirmation Code</label>
               <input type="text" value={totpCode} onChange={e => setTotpCode(e.target.value)}
