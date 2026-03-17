@@ -56,9 +56,14 @@ aws cognito-idp update-user-pool \
   --user-pool-id "$COGNITO_USER_POOL_ID" \
   --region "$REGION" \
   --lambda-config "PostConfirmation=$LAMBDA_FUNCTION_ARN" \
-  --mfa-configuration ON \
+  --mfa-configuration OPTIONAL \
   --sms-configuration "SnsCallerArn=$COGNITO_SMS_ROLE_ARN,ExternalId=$EXTERNAL_ID" \
-  --auto-verified-attributes email phone_number
+  --auto-verified-attributes email \
+  --policies '{"PasswordPolicy":{"MinimumLength":8,"RequireUppercase":true,"RequireLowercase":true,"RequireNumbers":true,"RequireSymbols":false,"TemporaryPasswordValidityDays":7}}' \
+  --admin-create-user-config '{"AllowAdminCreateUserOnly":false,"UnusedAccountValidityDays":7}' \
+  --email-configuration '{"EmailSendingAccount":"COGNITO_DEFAULT"}' \
+  --verification-message-template '{"DefaultEmailOption":"CONFIRM_WITH_CODE"}' \
+  --user-pool-tags Project=DCATCH
 
 aws lambda add-permission \
   --function-name "$FUNCTION_NAME" \
