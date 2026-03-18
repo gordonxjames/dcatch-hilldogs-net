@@ -83,7 +83,7 @@ Delta Catcher is an investment analyst tool for modeling quantitative strategies
 
 ## Reference Project
 
-The `repl.hilldogs.net` project at `gordonxjames/repl-hilldogs-net` is the design reference for
+The `repl.hilldogs.net` project at `gordonxjames/REPL` is the design reference for
 naming conventions, code style, and infrastructure patterns. **Do not modify that repository.**
 Read from it to understand conventions; implement analogous but independent resources here.
 
