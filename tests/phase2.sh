@@ -99,7 +99,7 @@ section "API Gateway — REST API"
 API_NAME=$(aws apigateway get-rest-api \
   --rest-api-id "$APIGW_ID" --region "$REGION" \
   --query name --output text 2>/dev/null || echo "")
-assert_eq "REST API name is dcatch-api-gw" "dcatch-api-gw" "$API_NAME"
+assert_eq "REST API name is dcatch-api" "dcatch-api" "$API_NAME"
 
 API_ENDPOINT=$(aws apigateway get-rest-api \
   --rest-api-id "$APIGW_ID" --region "$REGION" \

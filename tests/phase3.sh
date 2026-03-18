@@ -21,7 +21,7 @@ source "$REPO_ROOT_P3/infra/outputs.env"
 DOMAIN="dcatch.hilldogs.net"
 HOSTED_ZONE_ID="Z09301025V2NYG3DJ3TL"
 CERT_ARN="arn:aws:acm:us-east-1:420030147545:certificate/36daeb2b-20e3-4910-bbe1-acac865f5adb"
-BUCKET="dcatch-hilldogs-frontend"
+BUCKET="dcatch-s3-frontend"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 section "CloudFront — outputs.env"

@@ -90,7 +90,7 @@ Read from it to understand conventions; implement analogous but independent reso
 ## Completed Phases
 
 - **Phase 1** — VPC, Cognito, IAM, S3. See `PHASE_1_SUMMARY.md`.
-- **Phase 2** — Lambda, API Gateway, EventBridge keep-warm. See `PHASE_2_SUMMARY.md`.
+- **Phase 2** — Lambda, API Gateway. See `PHASE_2_SUMMARY.md`.
 - **Phase 3** — CloudFront OAC + distribution, S3 bucket policy, Route 53 DNS. See `PHASE_3_SUMMARY.md`.
 - **Phase 4** — React frontend build & deploy. See `PHASE_4_SUMMARY.md`.
 
@@ -111,10 +111,10 @@ optional). 121/121 cumulative tests pass. End-to-end registration + email verifi
 | Cognito App Client | dcatch-web-client | akhb5c7esdmiiju1aklovdeb4 |
 | IAM Role | dcatch-lambda-role | arn:aws:iam::420030147545:role/dcatch-lambda-role |
 | IAM Role | dcatch-cognito-sms-role | arn:aws:iam::420030147545:role/dcatch-cognito-sms-role |
-| S3 Bucket | dcatch-hilldogs-frontend | dcatch-hilldogs-frontend |
+| S3 Bucket | dcatch-s3-frontend | dcatch-s3-frontend |
 | ACM Cert (shared) | *.hilldogs.net (us-east-1) | arn:aws:acm:us-east-1:420030147545:certificate/36daeb2b-20e3-4910-bbe1-acac865f5adb |
-| Lambda | dcatch-api (128MB) | arn:aws:lambda:us-east-2:420030147545:function:dcatch-api |
-| REST API | dcatch-api-gw | 0rsdzot34a |
+| Lambda | dcatch-lambda (128MB) | arn:aws:lambda:us-east-2:420030147545:function:dcatch-lambda |
+| REST API | dcatch-api | 0rsdzot34a |
 | API Stage | v1 | https://0rsdzot34a.execute-api.us-east-2.amazonaws.com/v1 |
 | CloudFront OAC | dcatch-s3-oac | E2HC19CJC7ET7N |
 | CloudFront Distribution | dcatch.hilldogs.net | E1BFXVAS6JB4C4 |

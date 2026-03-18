@@ -10,7 +10,7 @@ OUTPUTS="$SCRIPT_DIR/outputs.env"
 touch "$OUTPUTS"
 
 REGION="us-east-2"
-BUCKET="dcatch-hilldogs-frontend"
+BUCKET="dcatch-s3-frontend"
 
 # ─── Create bucket ───────────────────────────────────────────────────────────
 
@@ -27,7 +27,7 @@ aws s3api put-public-access-block \
 
 aws s3api put-bucket-tagging \
   --bucket "$BUCKET" \
-  --tagging 'TagSet=[{Key=Project,Value=DCATCH},{Key=Name,Value=dcatch-hilldogs-frontend}]'
+  --tagging 'TagSet=[{Key=Project,Value=DCATCH},{Key=Name,Value=dcatch-s3-frontend}]'
 
 echo "  Bucket: $BUCKET"
 

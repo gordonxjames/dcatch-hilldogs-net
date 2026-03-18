@@ -12,7 +12,7 @@ touch "$OUTPUTS"
 
 # ─── Config ──────────────────────────────────────────────────────────────────
 ACCOUNT_ID="420030147545"
-BUCKET="dcatch-hilldogs-frontend"
+BUCKET="dcatch-s3-frontend"
 DOMAIN="dcatch.hilldogs.net"
 CERT_ARN="arn:aws:acm:us-east-1:420030147545:certificate/36daeb2b-20e3-4910-bbe1-acac865f5adb"
 HOSTED_ZONE_ID="Z09301025V2NYG3DJ3TL"

@@ -4,17 +4,17 @@
 
 | Resource | Name / ID |
 |---|---|
-| Lambda Function | dcatch-api (`arn:aws:lambda:us-east-2:420030147545:function:dcatch-api`) |
-| EventBridge Rule | dcatch-lambda-keepwarm (rate 5 minutes) |
-| REST API | dcatch-api-gw (`0rsdzot34a`) |
-| Cognito Authorizer | dcatch-cognito-auth (`0fqrfi`) |
+| Lambda Function | dcatch-lambda (`arn:aws:lambda:us-east-2:420030147545:function:dcatch-lambda`) |
+| ~~EventBridge Rule~~ | ~~dcatch-lambda-keepwarm~~ — removed 2026-03-17 (cold starts acceptable; cost saving) |
+| REST API | dcatch-api (`0rsdzot34a`) |
+| Cognito Authorizer | dcatch-cognito-auth (`1kaxvk`) — recreated 2026-03-15 when Cognito pool was rebuilt |
 | API Stage | v1 → `https://0rsdzot34a.execute-api.us-east-2.amazonaws.com/v1` |
 
 ## Scripts Created
 
-- `infra/provision-lambda.sh` — creates Lambda in VPC, Cognito trigger, keep-warm rule
+- `infra/provision-lambda.sh` — creates Lambda in VPC, Cognito trigger
 - `infra/provision-apigw.sh` — creates REST API, authorizer, `/health`, `/{proxy+}`, deploys stage v1
-- `infra/configure-lambda.ps1` — sets ALERT_FROM_EMAIL / ALERT_TO_EMAIL env vars on Lambda
+- ~~`infra/configure-lambda.ps1`~~ — deleted 2026-03-17 (SES admin alerts dropped; no longer needed)
 - `infra/lambda/make-zip.ps1` — existed from Phase 1; packages lambda.zip
 
 ## Decisions Made

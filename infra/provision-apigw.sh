@@ -10,16 +10,16 @@ OUTPUTS="$SCRIPT_DIR/outputs.env"
 source "$OUTPUTS"
 
 REGION="us-east-2"
-FUNCTION_NAME="dcatch-api"
+FUNCTION_NAME="dcatch-lambda"
 
 echo "=== Phase 2: API Gateway ==="
 
 # ─── 1. Create REST API ───────────────────────────────────────────────────────
 
-echo "Creating REST API dcatch-api-gw..."
+echo "Creating REST API dcatch-api..."
 
 API_ID=$(aws apigateway create-rest-api \
-  --name dcatch-api-gw \
+  --name dcatch-api \
   --description "DCATCH API Gateway — Phase 2" \
   --endpoint-configuration types=REGIONAL \
   --region "$REGION" \

@@ -13,7 +13,7 @@
 | Security group (DB) | dcatch-sg-db / sg-05970d52df18fde0a | Inbound TCP 5432 from sg-lambda only |
 | Cognito user pool | dcatch-user-pool / us-east-2_7fwfzEQZM | See decisions below |
 | Cognito app client | dcatch-web-client / 38bvf5r3hs4mlfm2d3cu05b011 | No secret; SRP + refresh + password flows |
-| S3 bucket | dcatch-hilldogs-frontend | All public access blocked; CloudFront OAC policy added in Phase 3 |
+| S3 bucket | dcatch-s3-frontend | All public access blocked; CloudFront OAC policy added in Phase 3 |
 
 All resources tagged `Project=DCATCH`.
 

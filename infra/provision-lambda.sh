@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # provision-lambda.sh — Phase 2
-# Creates dcatch-api Lambda in VPC and attaches Cognito post-confirmation trigger.
+# Creates dcatch-lambda Lambda in VPC and attaches Cognito post-confirmation trigger.
 # Run from repo root: bash infra/provision-lambda.sh
 
 set -euo pipefail
@@ -9,7 +9,7 @@ OUTPUTS="$SCRIPT_DIR/outputs.env"
 source "$OUTPUTS"
 
 REGION="us-east-2"
-FUNCTION_NAME="dcatch-api"
+FUNCTION_NAME="dcatch-lambda"
 ZIP_PATH="$SCRIPT_DIR/lambda/lambda.zip"
 
 if [[ ! -f "$ZIP_PATH" ]]; then

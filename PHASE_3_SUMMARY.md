@@ -7,7 +7,7 @@
 | CloudFront OAC | E2HC19CJC7ET7N | sigv4, always, s3 |
 | CloudFront Distribution | E1BFXVAS6JB4C4 | dcatch.hilldogs.net |
 | CloudFront Domain | d166oqa1rcdpok.cloudfront.net | — |
-| S3 Bucket Policy | dcatch-hilldogs-frontend | OAC-only access |
+| S3 Bucket Policy | dcatch-s3-frontend | OAC-only access |
 | Route 53 A ALIAS | dcatch.hilldogs.net | → CloudFront |
 
 ## Decisions Made

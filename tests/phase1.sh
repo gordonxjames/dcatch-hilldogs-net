@@ -290,7 +290,7 @@ section "S3 Bucket"
 
 S3_NAME=$(aws s3api list-buckets \
   --query "Buckets[?Name=='${S3_BUCKET}'].Name" --output text 2>/dev/null || echo "")
-assert_eq "dcatch-hilldogs-frontend bucket exists" "$S3_BUCKET" "$S3_NAME"
+assert_eq "dcatch-s3-frontend bucket exists" "$S3_BUCKET" "$S3_NAME"
 
 BLK_ACLS=$(aws s3api get-public-access-block --bucket "$S3_BUCKET" \
   --query 'PublicAccessBlockConfiguration.BlockPublicAcls' --output text 2>/dev/null || echo "")
@@ -314,7 +314,7 @@ assert_eq "S3 bucket tagged Project=DCATCH" "DCATCH" "$S3_TAG"
 
 S3_NAME_TAG=$(aws s3api get-bucket-tagging --bucket "$S3_BUCKET" \
   --query 'TagSet[?Key==`Name`].Value' --output text 2>/dev/null || echo "")
-assert_eq "S3 bucket tagged Name=dcatch-hilldogs-frontend" "dcatch-hilldogs-frontend" "$S3_NAME_TAG"
+assert_eq "S3 bucket tagged Name=dcatch-s3-frontend" "dcatch-s3-frontend" "$S3_NAME_TAG"
 
 # ── Standalone summary ────────────────────────────────────────────────────────
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
