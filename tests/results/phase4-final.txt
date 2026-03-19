@@ -2,7 +2,7 @@
 ╔══════════════════════════════════════════╗
 ║   DCATCH Infrastructure Test Suite       ║
 ╚══════════════════════════════════════════╝
-  Run at: Sun, Mar 15, 2026  5:56:48 PM
+  Run at: Wed, Mar 18, 2026  5:51:41 PM
   Repo:   /c/Users/gordon/OneDrive - Hill Dogs Consulting/Documents/Development/dcatch.hilldogs.net
 
 ━━━ Phase 1 Tests ━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -62,7 +62,7 @@
   [PASS] Email is auto-verified
   [PASS] Email attribute is required
   [PASS] Email attribute is mutable
-  [PASS] Phone attribute is required
+  [PASS] Phone attribute is not required (optional)
   [PASS] Phone attribute is mutable
   [PASS] Password min length is 8
   [PASS] Password requires uppercase
@@ -79,13 +79,13 @@
   [PASS] Client prevent-user-existence-errors is ENABLED
 
 ── S3 Bucket ──
-  [PASS] dcatch-hilldogs-frontend bucket exists
+  [PASS] dcatch-s3-frontend bucket exists
   [PASS] BlockPublicAcls is true
   [PASS] IgnorePublicAcls is true
   [PASS] BlockPublicPolicy is true
   [PASS] RestrictPublicBuckets is true
   [PASS] S3 bucket tagged Project=DCATCH
-  [PASS] S3 bucket tagged Name=dcatch-hilldogs-frontend
+  [PASS] S3 bucket tagged Name=dcatch-s3-frontend
 
 ━━━ Phase 2 Tests ━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -95,7 +95,7 @@
   [PASS] Lambda role matches outputs.env
   [PASS] Lambda state is Active
   [PASS] Lambda timeout is 30s
-  [PASS] Lambda memory is 256 MB
+  [PASS] Lambda memory is 128 MB
   [PASS] Lambda ARN matches outputs.env
 
 ── Lambda — VPC config ──
@@ -110,13 +110,8 @@
 ── Cognito — post-confirmation trigger ──
   [PASS] Cognito post-confirmation trigger set to Lambda
 
-── EventBridge — keep-warm rule ──
-  [PASS] Keep-warm rule is ENABLED
-  [PASS] Keep-warm rule schedule is rate(5 minutes)
-  [PASS] Keep-warm rule targets Lambda
-
 ── API Gateway — REST API ──
-  [PASS] REST API name is dcatch-api-gw
+  [PASS] REST API name is dcatch-api
   [PASS] REST API endpoint type is REGIONAL
   [PASS] REST API tagged Project=DCATCH
 
@@ -137,6 +132,11 @@
   [PASS] GET /health returns 200
   [PASS] GET /health body has status ok
   [PASS] GET /health body has service dcatch-api
+
+── HTTP — /health CORS headers ──
+  [PASS] GET /health has CORS Allow-Origin: *
+  [PASS] GET /health has CORS Allow-Methods
+  [PASS] GET /health has CORS Allow-Headers with Authorization
 
 ━━━ Phase 3 Tests ━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -174,7 +174,7 @@
 ━━━ Phase 4 Tests ━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ── S3 — bucket has content ──
-  [PASS] S3 bucket dcatch-hilldogs-frontend has at least one object (6 objects)
+  [PASS] S3 bucket dcatch-s3-frontend has at least one object (7 objects)
   [PASS] index.html exists in S3 bucket
 
 ── CloudFront — HTTPS root returns 200 ──
@@ -191,11 +191,19 @@
 ── CloudFront — content-type check ──
   [PASS] Root response has text/html content-type
 
+── S3 — static assets ──
+  [PASS] favicon.png exists in S3 bucket
+  [PASS] S3 assets/ has at least one CSS file (1 found)
+  [PASS] S3 assets/ has at least one JS file (3 found)
+
+── CloudFront — page identity ──
+  [PASS] Deployed page title contains Delta Catcher
+
 ════════════════════════════════════════
  Results: All Phases (up to Phase 4)
 ════════════════════════════════════════
-  Total:  120
-  Passed: 120
+  Total:  124
+  Passed: 124
   Failed: 0
 
 All tests passed.

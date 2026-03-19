@@ -175,6 +175,19 @@ if [[ -f /tmp/dcatch_health.json ]]; then
   assert_eq "GET /health body has service dcatch-api" "dcatch-api" "$HEALTH_SERVICE"
 fi
 
+# ═══════════════════════════════════════════════════════════════════════════════
+section "HTTP — /health CORS headers"
+
+CORS_HEADERS=$(curl -si --max-time 15 "${APIGW_BASE_URL}/health" 2>/dev/null || echo "")
+CORS_ORIGIN=$(echo "$CORS_HEADERS" | grep -i 'access-control-allow-origin' | tr -d '\r' | awk '{print $2}')
+assert_eq "GET /health has CORS Allow-Origin: *" "*" "$CORS_ORIGIN"
+
+CORS_METHODS=$(echo "$CORS_HEADERS" | grep -i 'access-control-allow-methods' | tr -d '\r')
+assert_contains "GET /health has CORS Allow-Methods" "$CORS_METHODS" "GET"
+
+CORS_HEADERS_HDR=$(echo "$CORS_HEADERS" | grep -i 'access-control-allow-headers' | tr -d '\r')
+assert_contains "GET /health has CORS Allow-Headers with Authorization" "$CORS_HEADERS_HDR" "Authorization"
+
 # ── Standalone summary ─────────────────────────────────────────────────────────
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   print_summary "Phase 2"

@@ -41,7 +41,7 @@ Jira project key: `DCATCH`, project ID: `10135`
 Delta Catcher is an investment analyst tool for modeling quantitative strategies, hosted at
 `dcatch.hilldogs.net` on AWS (us-east-2). It is owned by Hill Dogs Consulting.
 
-- **GitHub**: https://github.com/gordonxjames/dcatch-hilldogs-net
+- **GitHub**: https://github.com/gordonxjames/DCATCH
 - **Jira**: https://hilldogs.atlassian.net/jira/software/projects/DCATCH/boards/136
 - **AWS Account**: 420030147545
 
@@ -94,11 +94,13 @@ Read from it to understand conventions; implement analogous but independent reso
 - **Phase 3** — CloudFront OAC + distribution, S3 bucket policy, Route 53 DNS. See `PHASE_3_SUMMARY.md`.
 - **Phase 4** — React frontend build & deploy. See `PHASE_4_SUMMARY.md`.
 
-## Current State (release 0.2 — post Phase 4)
+## Current State (release 0.3 — post Phase 4 + v0.3 features)
 
 All infrastructure is provisioned and the React frontend is live. `https://dcatch.hilldogs.net` serves
 the Delta Catcher app (amber theme, username-based auth, optional TOTP MFA, account settings, phone
-optional). 121/121 cumulative tests pass. End-to-end registration + email verification confirmed working.
+optional). v0.3 adds: QR code TOTP setup, InfoTip component, mobile-responsive login layout, Terms
+link in footer, Lambda memory reduced to 128 MB, keep-warm rule removed. 124/124 cumulative tests pass.
+End-to-end registration + email verification confirmed working.
 
 | Resource | Name | ID |
 |---|---|---|
@@ -157,8 +159,8 @@ git config user.email "gordonxjames@users.noreply.github.com"
 git config user.name "Gordon James"
 
 # 1. Clone repo
-git clone https://github.com/gordonxjames/dcatch-hilldogs-net.git
-cd dcatch-hilldogs-net
+git clone https://github.com/gordonxjames/DCATCH.git
+cd DCATCH
 
 # 2. Recreate outputs.env from template
 #    Template includes default email values (noreply@hilldogs.net / gjames@hilldogs.com).

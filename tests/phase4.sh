@@ -72,6 +72,32 @@ section "CloudFront — content-type check"
 content_type=$(curl -s -I "https://$DOMAIN/" --max-time 30 | grep -i 'content-type' | head -1)
 assert_contains "Root response has text/html content-type" "$content_type" "text/html"
 
+# ═══════════════════════════════════════════════════════════════════════════════
+section "S3 — static assets"
+
+favicon_listing=$(aws s3 ls "s3://$S3_BUCKET/favicon.png" 2>/dev/null)
+assert_not_empty "favicon.png exists in S3 bucket" "$favicon_listing"
+
+css_count=$(aws s3 ls "s3://$S3_BUCKET/assets/" --recursive 2>/dev/null | grep '\.css$' | wc -l | tr -d ' ')
+if [[ "$css_count" -gt 0 ]]; then
+  pass "S3 assets/ has at least one CSS file ($css_count found)"
+else
+  fail "S3 assets/ has no CSS files — frontend may not have been built/deployed"
+fi
+
+js_count=$(aws s3 ls "s3://$S3_BUCKET/assets/" --recursive 2>/dev/null | grep '\.js$' | wc -l | tr -d ' ')
+if [[ "$js_count" -gt 0 ]]; then
+  pass "S3 assets/ has at least one JS file ($js_count found)"
+else
+  fail "S3 assets/ has no JS files — frontend may not have been built/deployed"
+fi
+
+# ═══════════════════════════════════════════════════════════════════════════════
+section "CloudFront — page identity"
+
+page_title=$(curl -s "https://$DOMAIN/" --max-time 30 | grep -o '<title>[^<]*</title>' | head -1)
+assert_contains "Deployed page title contains Delta Catcher" "$page_title" "Delta Catcher"
+
 # Standalone summary
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   print_summary "Phase 4"

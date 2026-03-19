@@ -2,7 +2,7 @@
 ╔══════════════════════════════════════════╗
 ║   DCATCH Infrastructure Test Suite       ║
 ╚══════════════════════════════════════════╝
-  Run at: Sun, Mar 15, 2026  4:29:02 PM
+  Run at: Wed, Mar 18, 2026  6:02:39 PM
   Repo:   /c/Users/gordon/OneDrive - Hill Dogs Consulting/Documents/Development/dcatch.hilldogs.net
 
 ━━━ Phase 1 Tests ━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -57,13 +57,12 @@
 
 ── Cognito — User Pool ──
   [PASS] User pool name is dcatch-user-pool
-  [PASS] User pool MFA is ON
+  [PASS] User pool MFA is OPTIONAL
   [PASS] User pool has email alias attribute
   [PASS] Email is auto-verified
-  [PASS] Phone is auto-verified
   [PASS] Email attribute is required
   [PASS] Email attribute is mutable
-  [PASS] Phone attribute is required
+  [PASS] Phone attribute is not required (optional)
   [PASS] Phone attribute is mutable
   [PASS] Password min length is 8
   [PASS] Password requires uppercase
@@ -80,13 +79,13 @@
   [PASS] Client prevent-user-existence-errors is ENABLED
 
 ── S3 Bucket ──
-  [PASS] dcatch-hilldogs-frontend bucket exists
+  [PASS] dcatch-s3-frontend bucket exists
   [PASS] BlockPublicAcls is true
   [PASS] IgnorePublicAcls is true
   [PASS] BlockPublicPolicy is true
   [PASS] RestrictPublicBuckets is true
   [PASS] S3 bucket tagged Project=DCATCH
-  [PASS] S3 bucket tagged Name=dcatch-hilldogs-frontend
+  [PASS] S3 bucket tagged Name=dcatch-s3-frontend
 
 ━━━ Phase 2 Tests ━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -96,7 +95,7 @@
   [PASS] Lambda role matches outputs.env
   [PASS] Lambda state is Active
   [PASS] Lambda timeout is 30s
-  [PASS] Lambda memory is 256 MB
+  [PASS] Lambda memory is 128 MB
   [PASS] Lambda ARN matches outputs.env
 
 ── Lambda — VPC config ──
@@ -111,13 +110,8 @@
 ── Cognito — post-confirmation trigger ──
   [PASS] Cognito post-confirmation trigger set to Lambda
 
-── EventBridge — keep-warm rule ──
-  [PASS] Keep-warm rule is ENABLED
-  [PASS] Keep-warm rule schedule is rate(5 minutes)
-  [PASS] Keep-warm rule targets Lambda
-
 ── API Gateway — REST API ──
-  [PASS] REST API name is dcatch-api-gw
+  [PASS] REST API name is dcatch-api
   [PASS] REST API endpoint type is REGIONAL
   [PASS] REST API tagged Project=DCATCH
 
@@ -138,6 +132,11 @@
   [PASS] GET /health returns 200
   [PASS] GET /health body has status ok
   [PASS] GET /health body has service dcatch-api
+
+── HTTP — /health CORS headers ──
+  [PASS] GET /health has CORS Allow-Origin: *
+  [PASS] GET /health has CORS Allow-Methods
+  [PASS] GET /health has CORS Allow-Headers with Authorization
 
 ━━━ Phase 3 Tests ━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -170,13 +169,13 @@
   [PASS] A ALIAS record points to CF domain
 
 ── HTTPS endpoint ──
-  [PASS] https://dcatch.hilldogs.net/ returns HTTP response (got 403)
+  [PASS] https://dcatch.hilldogs.net/ returns HTTP response (got 200)
 
 ════════════════════════════════════════
  Results: All Phases (up to Phase 3)
 ════════════════════════════════════════
-  Total:  113
-  Passed: 113
+  Total:  112
+  Passed: 112
   Failed: 0
 
 All tests passed.
