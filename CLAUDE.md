@@ -93,14 +93,15 @@ Read from it to understand conventions; implement analogous but independent reso
 - **Phase 2** — Lambda, API Gateway. See `PHASE_2_SUMMARY.md`.
 - **Phase 3** — CloudFront OAC + distribution, S3 bucket policy, Route 53 DNS. See `PHASE_3_SUMMARY.md`.
 - **Phase 4** — React frontend build & deploy. See `PHASE_4_SUMMARY.md`.
+- **Phase 5** — Keep-warm EventBridge rule (`dcatch-lambda-keepwarm`). DCATCH-24.
 
-## Current State (release 0.3 — post Phase 4 + v0.3 features)
+## Current State (release 0.4 — post Phase 5)
 
 All infrastructure is provisioned and the React frontend is live. `https://dcatch.hilldogs.net` serves
 the Delta Catcher app (amber theme, username-based auth, optional TOTP MFA, account settings, phone
-optional). v0.3 adds: QR code TOTP setup, InfoTip component, mobile-responsive login layout, Terms
-link in footer, Lambda memory reduced to 128 MB, keep-warm rule removed. 124/124 cumulative tests pass.
-End-to-end registration + email verification confirmed working.
+optional). Phase 5 adds: EventBridge rule `dcatch-lambda-keepwarm` (rate 5 min) to prevent Lambda cold
+starts; Lambda handler early-exit returns `{ warmed: true }` for scheduled events. 134/134 cumulative
+tests pass. End-to-end registration + email verification confirmed working.
 
 | Resource | Name | ID |
 |---|---|---|
@@ -122,10 +123,11 @@ End-to-end registration + email verification confirmed working.
 | CloudFront Distribution | dcatch.hilldogs.net | E1BFXVAS6JB4C4 |
 | CloudFront Domain | — | d166oqa1rcdpok.cloudfront.net |
 | Route 53 A ALIAS | dcatch.hilldogs.net | → CloudFront |
+| EventBridge Rule | dcatch-lambda-keepwarm | arn:aws:events:us-east-2:420030147545:rule/dcatch-lambda-keepwarm |
 
 Full values in `infra/outputs.env` (gitignored).
 
-## Next Phase — Phase 5: TBD
+## Next Phase — Phase 6: TBD
 
 No next phase defined yet.
 
@@ -192,4 +194,7 @@ bash tests/run-all.sh --phase 3
 #      API_BASE          → new APIGW_BASE_URL from outputs.env
 pwsh deploy.ps1   # npm install + build + S3 sync + CF invalidation
 bash tests/run-all.sh --phase 4
+
+# 7. Phase 5 — Keep-warm rule (already provisioned in Phase 2 script above)
+bash tests/run-all.sh --phase 5
 ```

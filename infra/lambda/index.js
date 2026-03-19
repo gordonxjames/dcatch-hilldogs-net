@@ -3,6 +3,11 @@
 // Full API routes added in Phase 2+.
 
 exports.handler = async (event) => {
+  // ── Keep-warm ping (EventBridge scheduled rule) ────────────────────────────
+  if (event.source === 'aws.events' || event['detail-type'] === 'Scheduled Event') {
+    return { statusCode: 200, headers: cors(), body: JSON.stringify({ warmed: true }) };
+  }
+
   // ── Cognito post-confirmation trigger ─────────────────────────────────────
   // New user registrations are visible in CloudWatch Logs and the Cognito console.
   // No admin alert email — Lambda has no internet route (private VPC, no NAT).

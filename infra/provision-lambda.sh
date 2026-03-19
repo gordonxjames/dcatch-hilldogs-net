@@ -74,15 +74,49 @@ aws lambda add-permission \
 
 echo "  Cognito trigger attached."
 
+# ─── 3. Keep-warm EventBridge rule ───────────────────────────────────────────
+
+echo "Creating keep-warm EventBridge rule dcatch-lambda-keepwarm..."
+
+KEEPWARM_RULE_ARN=$(aws events put-rule \
+  --name dcatch-lambda-keepwarm \
+  --schedule-expression "rate(5 minutes)" \
+  --state ENABLED \
+  --description "Keep dcatch-lambda warm" \
+  --region "$REGION" \
+  --query RuleArn --output text)
+
+aws events tag-resource \
+  --resource-arn "$KEEPWARM_RULE_ARN" \
+  --tags Key=Project,Value=DCATCH \
+  --region "$REGION"
+
+aws lambda add-permission \
+  --function-name "$FUNCTION_NAME" \
+  --statement-id dcatch-lambda-keepwarm \
+  --action lambda:InvokeFunction \
+  --principal events.amazonaws.com \
+  --source-arn "$KEEPWARM_RULE_ARN" \
+  --region "$REGION" > /dev/null 2>&1 || echo "  (permission already exists — skipping)"
+
+aws events put-targets \
+  --rule dcatch-lambda-keepwarm \
+  --targets "Id=1,Arn=$LAMBDA_FUNCTION_ARN" \
+  --region "$REGION" > /dev/null
+
+echo "  Keep-warm rule ARN: $KEEPWARM_RULE_ARN"
+
 # ─── Write outputs ────────────────────────────────────────────────────────────
 
 grep -v "^LAMBDA_FUNCTION_ARN=" "$OUTPUTS" \
   | grep -v "^LAMBDA_FUNCTION_NAME=" \
+  | grep -v "^KEEPWARM_RULE_ARN=" \
   > "$OUTPUTS.tmp" && mv "$OUTPUTS.tmp" "$OUTPUTS"
 
 cat >> "$OUTPUTS" <<EOF
 LAMBDA_FUNCTION_ARN=$LAMBDA_FUNCTION_ARN
 LAMBDA_FUNCTION_NAME=$FUNCTION_NAME
+KEEPWARM_RULE_ARN=$KEEPWARM_RULE_ARN
 EOF
 
 echo "Lambda provisioning complete. Values written to outputs.env."
