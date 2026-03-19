@@ -100,7 +100,7 @@ Read from it to understand conventions; implement analogous but independent reso
 All infrastructure is provisioned and the React frontend is live. `https://dcatch.hilldogs.net` serves
 the Delta Catcher app (amber theme, username-based auth, optional TOTP MFA, account settings, phone
 optional). Phase 5 adds: EventBridge rule `dcatch-lambda-keepwarm` (rate 5 min) to prevent Lambda cold
-starts; Lambda handler early-exit returns `{ warmed: true }` for scheduled events. 134/134 cumulative
+starts; Lambda handler early-exit returns `{ warmed: true }` for scheduled events. 135/135 cumulative
 tests pass. End-to-end registration + email verification confirmed working.
 
 | Resource | Name | ID |

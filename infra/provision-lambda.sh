@@ -83,13 +83,14 @@ KEEPWARM_RULE_ARN=$(aws events put-rule \
   --schedule-expression "rate(5 minutes)" \
   --state ENABLED \
   --description "Keep dcatch-lambda warm" \
+  --tags Key=Project,Value=DCATCH \
   --region "$REGION" \
   --query RuleArn --output text)
 
-aws events tag-resource \
-  --resource-arn "$KEEPWARM_RULE_ARN" \
-  --tags Key=Project,Value=DCATCH \
-  --region "$REGION"
+aws lambda remove-permission \
+  --function-name "$FUNCTION_NAME" \
+  --statement-id dcatch-lambda-keepwarm \
+  --region "$REGION" > /dev/null 2>&1 || true
 
 aws lambda add-permission \
   --function-name "$FUNCTION_NAME" \
@@ -97,11 +98,11 @@ aws lambda add-permission \
   --action lambda:InvokeFunction \
   --principal events.amazonaws.com \
   --source-arn "$KEEPWARM_RULE_ARN" \
-  --region "$REGION" > /dev/null 2>&1 || echo "  (permission already exists — skipping)"
+  --region "$REGION" > /dev/null
 
 aws events put-targets \
   --rule dcatch-lambda-keepwarm \
-  --targets "Id=1,Arn=$LAMBDA_FUNCTION_ARN" \
+  --targets "Id=dcatch-lambda-keepwarm-target,Arn=$LAMBDA_FUNCTION_ARN" \
   --region "$REGION" > /dev/null
 
 echo "  Keep-warm rule ARN: $KEEPWARM_RULE_ARN"

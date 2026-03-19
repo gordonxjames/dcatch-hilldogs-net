@@ -2,7 +2,7 @@
 ╔══════════════════════════════════════════╗
 ║   DCATCH Infrastructure Test Suite       ║
 ╚══════════════════════════════════════════╝
-  Run at: Thu, Mar 19, 2026  4:52:16 AM
+  Run at: Thu, Mar 19, 2026  5:23:54 AM
   Repo:   /c/Users/gordon/OneDrive - Hill Dogs Consulting/Documents/Development/DCATCH
 
 ━━━ Phase 1 Tests ━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -209,6 +209,7 @@
 
 ── Keep-warm — EventBridge rule target ──
   [PASS] Rule targets dcatch-lambda
+  [PASS] Rule target ID is dcatch-lambda-keepwarm-target
 
 ── Keep-warm — rule tag ──
   [PASS] Rule tagged Project=DCATCH
@@ -224,8 +225,8 @@
 ════════════════════════════════════════
  Results: All Phases (up to Phase 5)
 ════════════════════════════════════════
-  Total:  134
-  Passed: 134
+  Total:  135
+  Passed: 135
   Failed: 0
 
 All tests passed.

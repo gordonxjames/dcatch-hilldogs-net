@@ -54,6 +54,11 @@ TARGET_ARN=$(aws events list-targets-by-rule \
   --query 'Targets[0].Arn' --output text 2>/dev/null || echo "")
 assert_eq "Rule targets dcatch-lambda" "$LAMBDA_FUNCTION_ARN" "$TARGET_ARN"
 
+TARGET_ID=$(aws events list-targets-by-rule \
+  --rule "$RULE_NAME" --region "$REGION" \
+  --query 'Targets[0].Id' --output text 2>/dev/null || echo "")
+assert_eq "Rule target ID is dcatch-lambda-keepwarm-target" "dcatch-lambda-keepwarm-target" "$TARGET_ID"
+
 # ═══════════════════════════════════════════════════════════════════════════════
 section "Keep-warm — rule tag"
 
