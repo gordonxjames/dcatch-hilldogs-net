@@ -63,6 +63,7 @@ Delta Catcher is an investment analyst tool for modeling quantitative strategies
 | Styling | Custom CSS variables, no framework | Mirrors REPL project |
 | Colors | Amber/gold replacing REPL blues: `--primary-dark:#92400e / --primary:#b45309 / --primary-light:#d97706 / --accent:#059669 (teal)` | DCATCH brand identity |
 | Infrastructure tooling | Bash scripts + PowerShell helpers, AWS CLI | Mirrors REPL; human-readable and maintainable |
+| API Gateway type | HTTP API v2 (not REST API v1) | 71% cheaper; simpler CORS; JWT authorizer lighter than Cognito User Pools authorizer; auto-deploy stage |
 
 ## Frontend Design Decisions
 
@@ -93,15 +94,15 @@ Read from it to understand conventions; implement analogous but independent reso
 - **Phase 2** — Lambda, API Gateway. See `PHASE_2_SUMMARY.md`.
 - **Phase 3** — CloudFront OAC + distribution, S3 bucket policy, Route 53 DNS. See `PHASE_3_SUMMARY.md`.
 - **Phase 4** — React frontend build & deploy. See `PHASE_4_SUMMARY.md`.
-- **Phase 5** — Keep-warm EventBridge rule (`dcatch-lambda-keepwarm`). DCATCH-24.
+- **Phase 5** — Keep-warm EventBridge rule (`dcatch-lambda-keepwarm`) + API Gateway migration from REST API v1 to HTTP API v2. See `PHASE_5_SUMMARY.md`.
 
-## Current State (release 0.4 — post Phase 5)
+## Current State (release 0.5 — post Phase 5 reconciliation)
 
 All infrastructure is provisioned and the React frontend is live. `https://dcatch.hilldogs.net` serves
 the Delta Catcher app (amber theme, username-based auth, optional TOTP MFA, account settings, phone
-optional). Phase 5 adds: EventBridge rule `dcatch-lambda-keepwarm` (rate 5 min) to prevent Lambda cold
-starts; Lambda handler early-exit returns `{ warmed: true }` for scheduled events. 135/135 cumulative
-tests pass. End-to-end registration + email verification confirmed working.
+optional). Phase 5: EventBridge rule `dcatch-lambda-keepwarm` (rate 5 min); API Gateway migrated from
+REST API v1 to HTTP API v2 with JWT authorizer; Lambda handles both v1/v2 event formats.
+End-to-end registration + email verification confirmed working.
 
 | Resource | Name | ID |
 |---|---|---|
@@ -117,8 +118,9 @@ tests pass. End-to-end registration + email verification confirmed working.
 | S3 Bucket | dcatch-s3-frontend | dcatch-s3-frontend |
 | ACM Cert (shared) | *.hilldogs.net (us-east-1) | arn:aws:acm:us-east-1:420030147545:certificate/36daeb2b-20e3-4910-bbe1-acac865f5adb |
 | Lambda | dcatch-lambda (128MB) | arn:aws:lambda:us-east-2:420030147545:function:dcatch-lambda |
-| REST API | dcatch-api | 0rsdzot34a |
-| API Stage | v1 | https://0rsdzot34a.execute-api.us-east-2.amazonaws.com/v1 |
+| HTTP API v2 | dcatch-api | lz3ukvdl4h |
+| JWT Authorizer | dcatch-cognito-jwt | zr31wd |
+| API Base URL | — | https://lz3ukvdl4h.execute-api.us-east-2.amazonaws.com |
 | CloudFront OAC | dcatch-s3-oac | E2HC19CJC7ET7N |
 | CloudFront Distribution | dcatch.hilldogs.net | E1BFXVAS6JB4C4 |
 | CloudFront Domain | — | d166oqa1rcdpok.cloudfront.net |

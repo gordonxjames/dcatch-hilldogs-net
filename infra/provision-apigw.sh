@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # provision-apigw.sh — Phase 2
-# Creates REST API Gateway with Cognito authorizer, /health (no auth) and
-# /{proxy+} (Cognito auth) resources, deploys to stage v1.
+# Creates HTTP API v2 (API Gateway v2) with JWT authorizer (Cognito), /health (no auth)
+# and $default catch-all route (JWT auth), auto-deployed to $default stage.
 # Run from repo root: bash infra/provision-apigw.sh
 
 set -euo pipefail
@@ -12,149 +12,127 @@ source "$OUTPUTS"
 REGION="us-east-2"
 FUNCTION_NAME="dcatch-lambda"
 
-echo "=== Phase 2: API Gateway ==="
-
-# ─── 1. Create REST API ───────────────────────────────────────────────────────
-
-echo "Creating REST API dcatch-api..."
-
-API_ID=$(aws apigateway create-rest-api \
-  --name dcatch-api \
-  --description "DCATCH API Gateway — Phase 2" \
-  --endpoint-configuration types=REGIONAL \
-  --region "$REGION" \
-  --tags Project=DCATCH \
-  --query id --output text)
-
-echo "  API ID: $API_ID"
-
-ROOT_ID=$(aws apigateway get-resources \
-  --rest-api-id "$API_ID" \
-  --region "$REGION" \
-  --query 'items[?path==`/`].id' --output text)
-
-# ─── 2. Cognito authorizer ────────────────────────────────────────────────────
-
-echo "Creating Cognito authorizer..."
-
-AUTHORIZER_ID=$(aws apigateway create-authorizer \
-  --rest-api-id "$API_ID" \
-  --name dcatch-cognito-auth \
-  --type COGNITO_USER_POOLS \
-  --provider-arns "arn:aws:cognito-idp:$REGION:$AWS_ACCOUNT_ID:userpool/$COGNITO_USER_POOL_ID" \
-  --identity-source "method.request.header.Authorization" \
-  --region "$REGION" \
-  --query id --output text)
-
-echo "  Authorizer ID: $AUTHORIZER_ID"
+echo "=== Phase 2: API Gateway (HTTP API v2) ==="
 
 LAMBDA_ARN=$(aws lambda get-function \
   --function-name "$FUNCTION_NAME" \
   --region "$REGION" \
   --query Configuration.FunctionArn --output text)
 
-INTEGRATION_URI="arn:aws:apigateway:$REGION:lambda:path/2015-03-31/functions/$LAMBDA_ARN/invocations"
+COGNITO_ISSUER="https://cognito-idp.${REGION}.amazonaws.com/${COGNITO_USER_POOL_ID}"
+LAMBDA_INVOKE_ARN="arn:aws:apigateway:${REGION}:lambda:path/2015-03-31/functions/${LAMBDA_ARN}/invocations"
 
-# ─── 3. /health resource — GET, no auth ──────────────────────────────────────
+# ─── 1. Create HTTP API ───────────────────────────────────────────────────────
 
-echo "Creating /health resource (no auth)..."
+echo "Creating HTTP API dcatch-api..."
 
-HEALTH_ID=$(aws apigateway create-resource \
-  --rest-api-id "$API_ID" \
-  --parent-id "$ROOT_ID" \
-  --path-part health \
+API_ID=$(aws apigatewayv2 create-api \
+  --name dcatch-api \
+  --protocol-type HTTP \
+  --cors-configuration \
+    AllowOrigins='["https://dcatch.hilldogs.net"]',AllowMethods='["GET","POST","PUT","DELETE","OPTIONS"]',AllowHeaders='["Content-Type","Authorization"]',MaxAge=300 \
   --region "$REGION" \
-  --query id --output text)
+  --tags Project=DCATCH \
+  --query ApiId --output text)
 
-aws apigateway put-method \
-  --rest-api-id "$API_ID" \
-  --resource-id "$HEALTH_ID" \
-  --http-method GET \
+echo "  API ID: $API_ID"
+
+# ─── 2. Lambda integration ────────────────────────────────────────────────────
+
+echo "Creating Lambda integration..."
+
+INTEGRATION_ID=$(aws apigatewayv2 create-integration \
+  --api-id "$API_ID" \
+  --integration-type AWS_PROXY \
+  --integration-method POST \
+  --integration-uri "$LAMBDA_INVOKE_ARN" \
+  --payload-format-version 2.0 \
+  --timeout-in-millis 30000 \
+  --region "$REGION" \
+  --query IntegrationId --output text)
+
+echo "  Integration ID: $INTEGRATION_ID"
+
+# ─── 3. JWT authorizer ────────────────────────────────────────────────────────
+
+echo "Creating JWT authorizer..."
+
+AUTHORIZER_ID=$(aws apigatewayv2 create-authorizer \
+  --api-id "$API_ID" \
+  --name dcatch-cognito-jwt \
+  --authorizer-type JWT \
+  --identity-source '$request.header.Authorization' \
+  --jwt-configuration \
+    Audience="[\"${COGNITO_CLIENT_ID}\"]",Issuer="${COGNITO_ISSUER}" \
+  --region "$REGION" \
+  --query AuthorizerId --output text)
+
+echo "  Authorizer ID: $AUTHORIZER_ID"
+
+# ─── 4. Routes ────────────────────────────────────────────────────────────────
+
+echo "Creating GET /health route (no auth)..."
+
+aws apigatewayv2 create-route \
+  --api-id "$API_ID" \
+  --route-key "GET /health" \
   --authorization-type NONE \
+  --target "integrations/$INTEGRATION_ID" \
   --region "$REGION" > /dev/null
 
-aws apigateway put-integration \
-  --rest-api-id "$API_ID" \
-  --resource-id "$HEALTH_ID" \
-  --http-method GET \
-  --type AWS_PROXY \
-  --integration-http-method POST \
-  --uri "$INTEGRATION_URI" \
-  --region "$REGION" > /dev/null
+echo "Creating \$default route (JWT auth)..."
 
-# ─── 4. /{proxy+} resource — ANY, Cognito auth ────────────────────────────────
-
-echo "Creating /{proxy+} resource (Cognito auth)..."
-
-PROXY_ID=$(aws apigateway create-resource \
-  --rest-api-id "$API_ID" \
-  --parent-id "$ROOT_ID" \
-  --path-part "{proxy+}" \
-  --region "$REGION" \
-  --query id --output text)
-
-aws apigateway put-method \
-  --rest-api-id "$API_ID" \
-  --resource-id "$PROXY_ID" \
-  --http-method ANY \
-  --authorization-type COGNITO_USER_POOLS \
+aws apigatewayv2 create-route \
+  --api-id "$API_ID" \
+  --route-key '$default' \
+  --authorization-type JWT \
   --authorizer-id "$AUTHORIZER_ID" \
+  --target "integrations/$INTEGRATION_ID" \
   --region "$REGION" > /dev/null
 
-aws apigateway put-integration \
-  --rest-api-id "$API_ID" \
-  --resource-id "$PROXY_ID" \
-  --http-method ANY \
-  --type AWS_PROXY \
-  --integration-http-method POST \
-  --uri "$INTEGRATION_URI" \
+# ─── 5. Auto-deploy stage ─────────────────────────────────────────────────────
+
+echo "Creating auto-deploy \$default stage..."
+
+aws apigatewayv2 create-stage \
+  --api-id "$API_ID" \
+  --stage-name '$default' \
+  --auto-deploy \
   --region "$REGION" > /dev/null
 
-# ─── 5. Lambda invoke permissions ─────────────────────────────────────────────
+# ─── 6. Lambda invoke permission ──────────────────────────────────────────────
 
-echo "Granting Lambda invoke permissions to API Gateway..."
+echo "Granting Lambda invoke permission to API Gateway..."
+
+# Remove first to allow idempotent re-runs
+aws lambda remove-permission \
+  --function-name "$FUNCTION_NAME" \
+  --statement-id dcatch-apigw-httpv2 \
+  --region "$REGION" 2>/dev/null || true
 
 aws lambda add-permission \
   --function-name "$FUNCTION_NAME" \
-  --statement-id dcatch-apigw-health \
-  --action lambda:InvokeFunction \
-  --principal apigateway.amazonaws.com \
-  --source-arn "arn:aws:execute-api:$REGION:$AWS_ACCOUNT_ID:$API_ID/*/GET/health" \
-  --region "$REGION" > /dev/null
-
-aws lambda add-permission \
-  --function-name "$FUNCTION_NAME" \
-  --statement-id dcatch-apigw-proxy \
+  --statement-id dcatch-apigw-httpv2 \
   --action lambda:InvokeFunction \
   --principal apigateway.amazonaws.com \
   --source-arn "arn:aws:execute-api:$REGION:$AWS_ACCOUNT_ID:$API_ID/*/*" \
   --region "$REGION" > /dev/null
 
-# ─── 6. Deploy to stage v1 ───────────────────────────────────────────────────
-
-echo "Deploying to stage v1..."
-
-aws apigateway create-deployment \
-  --rest-api-id "$API_ID" \
-  --stage-name v1 \
-  --description "Phase 2 initial deployment" \
-  --region "$REGION" > /dev/null
-
-APIGW_BASE_URL="https://$API_ID.execute-api.$REGION.amazonaws.com/v1"
-echo "  Base URL: $APIGW_BASE_URL"
-
 # ─── Write outputs ────────────────────────────────────────────────────────────
+
+APIGW_BASE_URL="https://$API_ID.execute-api.$REGION.amazonaws.com"
+echo "  Base URL: $APIGW_BASE_URL"
 
 grep -v "^APIGW_ID=" "$OUTPUTS" \
   | grep -v "^APIGW_BASE_URL=" \
   | grep -v "^APIGW_AUTHORIZER_ID=" \
   > "$OUTPUTS.tmp" && mv "$OUTPUTS.tmp" "$OUTPUTS"
 
-cat >> "$OUTPUTS" <<EOF
+cat >> "$OUTPUTS" <<ENVEOF
 APIGW_ID=$API_ID
 APIGW_BASE_URL=$APIGW_BASE_URL
 APIGW_AUTHORIZER_ID=$AUTHORIZER_ID
-EOF
+ENVEOF
 
 echo "API Gateway provisioning complete. Values written to outputs.env."
 echo ""

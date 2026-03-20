@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # tests/phase2.sh — Phase 2 infrastructure tests
 # Verifies: Lambda function, Cognito trigger,
-#           API Gateway (REST API, authorizer, /health, /{proxy+}), HTTP health check.
+#           API Gateway HTTP v2 (JWT authorizer, /health, $default), HTTP health check.
 # No external dependencies beyond AWS CLI and curl.
 #
 # Sourced by tests/run-all.sh; can also be run standalone:
@@ -86,6 +86,15 @@ LAMBDA_TAG=$(aws lambda list-tags \
 assert_eq "Lambda tagged Project=DCATCH" "DCATCH" "$LAMBDA_TAG"
 
 # ═══════════════════════════════════════════════════════════════════════════════
+section "Lambda — CloudWatch log retention"
+
+# MSYS_NO_PATHCONV prevents Git Bash on Windows from mangling /aws/lambda/... paths
+LAMBDA_LOG_RETENTION=$(MSYS_NO_PATHCONV=1 aws logs describe-log-groups \
+  --log-group-name-prefix "/aws/lambda/$LAMBDA_FUNCTION_NAME" --region "$REGION" \
+  --query 'logGroups[0].retentionInDays' --output text 2>/dev/null || echo "")
+assert_eq "Lambda log group retention is 7 days" "7" "$LAMBDA_LOG_RETENTION"
+
+# ═══════════════════════════════════════════════════════════════════════════════
 section "Cognito — post-confirmation trigger"
 
 TRIGGER_ARN=$(aws cognito-idp describe-user-pool \
@@ -94,71 +103,71 @@ TRIGGER_ARN=$(aws cognito-idp describe-user-pool \
 assert_eq "Cognito post-confirmation trigger set to Lambda" "$LAMBDA_FUNCTION_ARN" "$TRIGGER_ARN"
 
 # ═══════════════════════════════════════════════════════════════════════════════
-section "API Gateway — REST API"
+section "API Gateway — HTTP API v2"
 
-API_NAME=$(aws apigateway get-rest-api \
-  --rest-api-id "$APIGW_ID" --region "$REGION" \
-  --query name --output text 2>/dev/null || echo "")
-assert_eq "REST API name is dcatch-api" "dcatch-api" "$API_NAME"
+API_NAME=$(aws apigatewayv2 get-api \
+  --api-id "$APIGW_ID" --region "$REGION" \
+  --query Name --output text 2>/dev/null || echo "")
+assert_eq "HTTP API name is dcatch-api" "dcatch-api" "$API_NAME"
 
-API_ENDPOINT=$(aws apigateway get-rest-api \
-  --rest-api-id "$APIGW_ID" --region "$REGION" \
-  --query 'endpointConfiguration.types[0]' --output text 2>/dev/null || echo "")
-assert_eq "REST API endpoint type is REGIONAL" "REGIONAL" "$API_ENDPOINT"
+API_PROTOCOL=$(aws apigatewayv2 get-api \
+  --api-id "$APIGW_ID" --region "$REGION" \
+  --query ProtocolType --output text 2>/dev/null || echo "")
+assert_eq "HTTP API protocol type is HTTP" "HTTP" "$API_PROTOCOL"
 
-API_TAG=$(aws apigateway get-tags \
-  --resource-arn "arn:aws:apigateway:$REGION::/restapis/$APIGW_ID" --region "$REGION" \
-  --query 'tags.Project' --output text 2>/dev/null || echo "")
-assert_eq "REST API tagged Project=DCATCH" "DCATCH" "$API_TAG"
+API_TAG=$(aws apigatewayv2 get-api \
+  --api-id "$APIGW_ID" --region "$REGION" \
+  --query 'Tags.Project' --output text 2>/dev/null || echo "")
+assert_eq "HTTP API tagged Project=DCATCH" "DCATCH" "$API_TAG"
 
-# ═══════════════════════════════════════════════════════════════════════════════
-section "API Gateway — Cognito authorizer"
-
-AUTH_TYPE=$(aws apigateway get-authorizer \
-  --rest-api-id "$APIGW_ID" --authorizer-id "$APIGW_AUTHORIZER_ID" --region "$REGION" \
-  --query type --output text 2>/dev/null || echo "")
-assert_eq "Authorizer type is COGNITO_USER_POOLS" "COGNITO_USER_POOLS" "$AUTH_TYPE"
-
-AUTH_NAME=$(aws apigateway get-authorizer \
-  --rest-api-id "$APIGW_ID" --authorizer-id "$APIGW_AUTHORIZER_ID" --region "$REGION" \
-  --query name --output text 2>/dev/null || echo "")
-assert_eq "Authorizer name is dcatch-cognito-auth" "dcatch-cognito-auth" "$AUTH_NAME"
-
-AUTH_IDENTITY=$(aws apigateway get-authorizer \
-  --rest-api-id "$APIGW_ID" --authorizer-id "$APIGW_AUTHORIZER_ID" --region "$REGION" \
-  --query identitySource --output text 2>/dev/null || echo "")
-assert_eq "Authorizer identity source is Authorization header" \
-  "method.request.header.Authorization" "$AUTH_IDENTITY"
-
-AUTH_POOL=$(aws apigateway get-authorizer \
-  --rest-api-id "$APIGW_ID" --authorizer-id "$APIGW_AUTHORIZER_ID" --region "$REGION" \
-  --query 'providerARNs[0]' --output text 2>/dev/null || echo "")
-assert_contains "Authorizer points to correct Cognito pool" "$AUTH_POOL" "$COGNITO_USER_POOL_ID"
+CORS_ORIGIN=$(aws apigatewayv2 get-api \
+  --api-id "$APIGW_ID" --region "$REGION" \
+  --query 'CorsConfiguration.AllowOrigins[0]' --output text 2>/dev/null || echo "")
+assert_eq "HTTP API CORS allows dcatch.hilldogs.net" "https://dcatch.hilldogs.net" "$CORS_ORIGIN"
 
 # ═══════════════════════════════════════════════════════════════════════════════
-section "API Gateway — resources"
+section "API Gateway — JWT authorizer"
 
-HEALTH_METHOD=$(aws apigateway get-resources \
-  --rest-api-id "$APIGW_ID" --region "$REGION" \
-  --embed methods \
-  --query 'items[?path==`/health`].resourceMethods.GET.authorizationType' \
-  --output text 2>/dev/null || echo "")
-assert_eq "/health GET has no auth" "NONE" "$HEALTH_METHOD"
+AUTH_TYPE=$(aws apigatewayv2 get-authorizer \
+  --api-id "$APIGW_ID" --authorizer-id "$APIGW_AUTHORIZER_ID" --region "$REGION" \
+  --query AuthorizerType --output text 2>/dev/null || echo "")
+assert_eq "Authorizer type is JWT" "JWT" "$AUTH_TYPE"
 
-PROXY_METHOD=$(aws apigateway get-resources \
-  --rest-api-id "$APIGW_ID" --region "$REGION" \
-  --embed methods \
-  --query 'items[?path==`/{proxy+}`].resourceMethods.ANY.authorizationType' \
-  --output text 2>/dev/null || echo "")
-assert_eq "/{proxy+} ANY uses Cognito auth" "COGNITO_USER_POOLS" "$PROXY_METHOD"
+AUTH_NAME=$(aws apigatewayv2 get-authorizer \
+  --api-id "$APIGW_ID" --authorizer-id "$APIGW_AUTHORIZER_ID" --region "$REGION" \
+  --query Name --output text 2>/dev/null || echo "")
+assert_eq "Authorizer name is dcatch-cognito-jwt" "dcatch-cognito-jwt" "$AUTH_NAME"
+
+AUTH_ISSUER=$(aws apigatewayv2 get-authorizer \
+  --api-id "$APIGW_ID" --authorizer-id "$APIGW_AUTHORIZER_ID" --region "$REGION" \
+  --query 'JwtConfiguration.Issuer' --output text 2>/dev/null || echo "")
+assert_contains "Authorizer JWT issuer references Cognito pool" "$AUTH_ISSUER" "$COGNITO_USER_POOL_ID"
+
+AUTH_AUDIENCE=$(aws apigatewayv2 get-authorizer \
+  --api-id "$APIGW_ID" --authorizer-id "$APIGW_AUTHORIZER_ID" --region "$REGION" \
+  --query 'JwtConfiguration.Audience[0]' --output text 2>/dev/null || echo "")
+assert_eq "Authorizer JWT audience is Cognito client ID" "$COGNITO_CLIENT_ID" "$AUTH_AUDIENCE"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+section "API Gateway — routes"
+
+HEALTH_AUTH=$(aws apigatewayv2 get-routes \
+  --api-id "$APIGW_ID" --region "$REGION" \
+  --query 'Items[?RouteKey==`GET /health`].AuthorizationType' --output text 2>/dev/null || echo "")
+assert_eq "GET /health route has no auth (NONE)" "NONE" "$HEALTH_AUTH"
+
+DEFAULT_AUTH=$(aws apigatewayv2 get-routes \
+  --api-id "$APIGW_ID" --region "$REGION" \
+  --query 'Items[?RouteKey==`$default`].AuthorizationType' --output text 2>/dev/null || echo "")
+assert_eq "\$default route uses JWT auth" "JWT" "$DEFAULT_AUTH"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 section "API Gateway — stage"
 
-STAGE_STATE=$(aws apigateway get-stage \
-  --rest-api-id "$APIGW_ID" --stage-name v1 --region "$REGION" \
-  --query stageName --output text 2>/dev/null || echo "")
-assert_eq "Stage v1 exists" "v1" "$STAGE_STATE"
+STAGE_AUTODEPLOY=$(aws apigatewayv2 get-stage \
+  --api-id "$APIGW_ID" --stage-name '$default' --region "$REGION" \
+  --query AutoDeploy --output text 2>/dev/null || echo "")
+assert_eq "\$default stage has AutoDeploy enabled" "True" "$STAGE_AUTODEPLOY"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 section "HTTP — /health endpoint"
@@ -178,15 +187,25 @@ fi
 # ═══════════════════════════════════════════════════════════════════════════════
 section "HTTP — /health CORS headers"
 
-CORS_HEADERS=$(curl -si --max-time 15 "${APIGW_BASE_URL}/health" 2>/dev/null || echo "")
-CORS_ORIGIN=$(echo "$CORS_HEADERS" | grep -i 'access-control-allow-origin' | tr -d '\r' | awk '{print $2}')
-assert_eq "GET /health has CORS Allow-Origin: *" "*" "$CORS_ORIGIN"
+# HTTP API v2 managed CORS only returns Allow-Origin when request has an Origin header.
+# Allow-Methods and Allow-Headers are returned on OPTIONS preflight.
 
-CORS_METHODS=$(echo "$CORS_HEADERS" | grep -i 'access-control-allow-methods' | tr -d '\r')
-assert_contains "GET /health has CORS Allow-Methods" "$CORS_METHODS" "GET"
+GET_CORS=$(curl -si --max-time 15 \
+  -H "Origin: https://dcatch.hilldogs.net" \
+  "${APIGW_BASE_URL}/health" 2>/dev/null || echo "")
+CORS_ORIGIN=$(echo "$GET_CORS" | grep -i 'access-control-allow-origin' | tr -d '\r' | awk '{print $2}')
+assert_eq "GET /health has CORS Allow-Origin: https://dcatch.hilldogs.net" \
+  "https://dcatch.hilldogs.net" "$CORS_ORIGIN"
 
-CORS_HEADERS_HDR=$(echo "$CORS_HEADERS" | grep -i 'access-control-allow-headers' | tr -d '\r')
-assert_contains "GET /health has CORS Allow-Headers with Authorization" "$CORS_HEADERS_HDR" "Authorization"
+OPTIONS_CORS=$(curl -si --max-time 15 -X OPTIONS \
+  -H "Origin: https://dcatch.hilldogs.net" \
+  -H "Access-Control-Request-Method: GET" \
+  "${APIGW_BASE_URL}/health" 2>/dev/null || echo "")
+OPTIONS_METHODS=$(echo "$OPTIONS_CORS" | grep -i 'access-control-allow-methods' | tr -d '\r')
+assert_contains "OPTIONS preflight has CORS Allow-Methods" "$OPTIONS_METHODS" "GET"
+
+OPTIONS_HEADERS=$(echo "$OPTIONS_CORS" | grep -i 'access-control-allow-headers' | tr -d '\r')
+assert_contains "OPTIONS preflight has CORS Allow-Headers with authorization" "$OPTIONS_HEADERS" "authorization"
 
 # ── Standalone summary ─────────────────────────────────────────────────────────
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

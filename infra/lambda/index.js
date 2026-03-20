@@ -1,5 +1,5 @@
 'use strict';
-// dcatch-api Lambda — Phase 1 stub
+// dcatch-api Lambda — Phase 2 (HTTP API v2)
 // Full API routes added in Phase 2+.
 
 exports.handler = async (event) => {
@@ -19,8 +19,9 @@ exports.handler = async (event) => {
   }
 
   // ── HTTP routing (API Gateway proxy) ─────────────────────────────────────
-  const method = event.httpMethod;
-  const path   = event.path || '';
+  // Support both REST API v1 (httpMethod/path) and HTTP API v2 (requestContext.http/rawPath)
+  const method = event.httpMethod || event.requestContext?.http?.method || '';
+  const path   = event.path || event.rawPath || '';
 
   const ok  = (body) => ({ statusCode: 200, headers: cors(), body: JSON.stringify(body) });
   const err = (msg, code = 500) => ({ statusCode: code, headers: cors(), body: JSON.stringify({ error: msg }) });
@@ -34,7 +35,7 @@ exports.handler = async (event) => {
 
 function cors() {
   return {
-    'Access-Control-Allow-Origin':  '*',
+    'Access-Control-Allow-Origin':  'https://dcatch.hilldogs.net',
     'Access-Control-Allow-Headers': 'Content-Type,Authorization',
     'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
     'Content-Type': 'application/json',

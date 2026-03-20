@@ -107,6 +107,16 @@ aws events put-targets \
 
 echo "  Keep-warm rule ARN: $KEEPWARM_RULE_ARN"
 
+# ─── 4. CloudWatch log retention ─────────────────────────────────────────────
+
+echo "Setting CloudWatch log retention (7 days)..."
+
+# MSYS_NO_PATHCONV prevents Git Bash on Windows from mangling /aws/lambda/... paths
+MSYS_NO_PATHCONV=1 aws logs put-retention-policy \
+  --log-group-name "/aws/lambda/$FUNCTION_NAME" \
+  --retention-in-days 7 \
+  --region "$REGION" 2>/dev/null || true
+
 # ─── Write outputs ────────────────────────────────────────────────────────────
 
 grep -v "^LAMBDA_FUNCTION_ARN=" "$OUTPUTS" \

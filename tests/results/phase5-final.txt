@@ -2,7 +2,7 @@
 ╔══════════════════════════════════════════╗
 ║   DCATCH Infrastructure Test Suite       ║
 ╚══════════════════════════════════════════╝
-  Run at: Thu, Mar 19, 2026  5:23:54 AM
+  Run at: Thu, Mar 19, 2026  7:29:54 PM
   Repo:   /c/Users/gordon/OneDrive - Hill Dogs Consulting/Documents/Development/DCATCH
 
 ━━━ Phase 1 Tests ━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -107,26 +107,30 @@
 ── Lambda — tags ──
   [PASS] Lambda tagged Project=DCATCH
 
+── Lambda — CloudWatch log retention ──
+  [PASS] Lambda log group retention is 7 days
+
 ── Cognito — post-confirmation trigger ──
   [PASS] Cognito post-confirmation trigger set to Lambda
 
-── API Gateway — REST API ──
-  [PASS] REST API name is dcatch-api
-  [PASS] REST API endpoint type is REGIONAL
-  [PASS] REST API tagged Project=DCATCH
+── API Gateway — HTTP API v2 ──
+  [PASS] HTTP API name is dcatch-api
+  [PASS] HTTP API protocol type is HTTP
+  [PASS] HTTP API tagged Project=DCATCH
+  [PASS] HTTP API CORS allows dcatch.hilldogs.net
 
-── API Gateway — Cognito authorizer ──
-  [PASS] Authorizer type is COGNITO_USER_POOLS
-  [PASS] Authorizer name is dcatch-cognito-auth
-  [PASS] Authorizer identity source is Authorization header
-  [PASS] Authorizer points to correct Cognito pool
+── API Gateway — JWT authorizer ──
+  [PASS] Authorizer type is JWT
+  [PASS] Authorizer name is dcatch-cognito-jwt
+  [PASS] Authorizer JWT issuer references Cognito pool
+  [PASS] Authorizer JWT audience is Cognito client ID
 
-── API Gateway — resources ──
-  [PASS] /health GET has no auth
-  [PASS] /{proxy+} ANY uses Cognito auth
+── API Gateway — routes ──
+  [PASS] GET /health route has no auth (NONE)
+  [PASS] $default route uses JWT auth
 
 ── API Gateway — stage ──
-  [PASS] Stage v1 exists
+  [PASS] $default stage has AutoDeploy enabled
 
 ── HTTP — /health endpoint ──
   [PASS] GET /health returns 200
@@ -134,9 +138,9 @@
   [PASS] GET /health body has service dcatch-api
 
 ── HTTP — /health CORS headers ──
-  [PASS] GET /health has CORS Allow-Origin: *
-  [PASS] GET /health has CORS Allow-Methods
-  [PASS] GET /health has CORS Allow-Headers with Authorization
+  [PASS] GET /health has CORS Allow-Origin: https://dcatch.hilldogs.net
+  [PASS] OPTIONS preflight has CORS Allow-Methods
+  [PASS] OPTIONS preflight has CORS Allow-Headers with authorization
 
 ━━━ Phase 3 Tests ━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -225,8 +229,8 @@
 ════════════════════════════════════════
  Results: All Phases (up to Phase 5)
 ════════════════════════════════════════
-  Total:  135
-  Passed: 135
+  Total:  137
+  Passed: 137
   Failed: 0
 
 All tests passed.
