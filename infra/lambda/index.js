@@ -18,10 +18,9 @@ exports.handler = async (event) => {
     return event;
   }
 
-  // ── HTTP routing (API Gateway proxy) ─────────────────────────────────────
-  // Support both REST API v1 (httpMethod/path) and HTTP API v2 (requestContext.http/rawPath)
-  const method = event.httpMethod || event.requestContext?.http?.method || '';
-  const path   = event.path || event.rawPath || '';
+  // ── HTTP routing (API Gateway HTTP v2 proxy) ─────────────────────────────
+  const method = event.requestContext?.http?.method || '';
+  const path   = event.rawPath || '';
 
   const ok  = (body) => ({ statusCode: 200, headers: cors(), body: JSON.stringify(body) });
   const err = (msg, code = 500) => ({ statusCode: code, headers: cors(), body: JSON.stringify({ error: msg }) });
@@ -35,7 +34,7 @@ exports.handler = async (event) => {
 
 function cors() {
   return {
-    'Access-Control-Allow-Origin':  'https://dcatch.hilldogs.net',
+    'Access-Control-Allow-Origin':  process.env.ALLOWED_ORIGIN || 'https://dcatch.hilldogs.net',
     'Access-Control-Allow-Headers': 'Content-Type,Authorization',
     'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
     'Content-Type': 'application/json',

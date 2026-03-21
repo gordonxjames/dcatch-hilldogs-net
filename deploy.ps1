@@ -21,19 +21,35 @@ foreach ($line in Get-Content $OutputsEnv) {
     $env_vars[$parts[0].Trim()] = $parts[1].Trim()
 }
 
-$S3Bucket       = $env_vars['S3_BUCKET']
-$DistributionId = $env_vars['CF_DISTRIBUTION_ID']
+$S3Bucket        = $env_vars['S3_BUCKET']
+$DistributionId  = $env_vars['CF_DISTRIBUTION_ID']
+$CognitoPoolId   = $env_vars['COGNITO_USER_POOL_ID']
+$CognitoClientId = $env_vars['COGNITO_CLIENT_ID']
+$ApiBase         = $env_vars['APIGW_BASE_URL']
 
 if (-not $S3Bucket -or -not $DistributionId) {
     Write-Error "S3_BUCKET or CF_DISTRIBUTION_ID missing from infra/outputs.env"
+    exit 1
+}
+if (-not $CognitoPoolId -or -not $CognitoClientId -or -not $ApiBase) {
+    Write-Error "COGNITO_USER_POOL_ID, COGNITO_CLIENT_ID, or APIGW_BASE_URL missing from infra/outputs.env"
     exit 1
 }
 
 Write-Host "==> S3 bucket:      $S3Bucket"
 Write-Host "==> Distribution:   $DistributionId"
 
-# Build
+# Generate frontend/.env from outputs.env values (gitignored; read by Vite at build time)
 $FrontendDir = Join-Path $ScriptDir 'frontend'
+$FrontendEnv = Join-Path $FrontendDir '.env'
+Set-Content $FrontendEnv @"
+VITE_COGNITO_POOL_ID=$CognitoPoolId
+VITE_COGNITO_CLIENT_ID=$CognitoClientId
+VITE_API_BASE=$ApiBase
+"@
+Write-Host "==> Wrote frontend/.env"
+
+# Build
 Push-Location $FrontendDir
 try {
     Write-Host "`n==> npm install"

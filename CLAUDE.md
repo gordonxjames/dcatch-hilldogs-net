@@ -180,8 +180,9 @@ bash tests/run-all.sh --phase 1
 
 # 4. Phase 2 — Lambda & API Gateway
 pwsh infra/lambda/make-zip.ps1
-bash infra/provision-lambda.sh   # also attaches Cognito trigger + keep-warm rule
+bash infra/provision-lambda.sh   # creates Lambda + attaches Cognito trigger
 bash infra/provision-apigw.sh
+bash infra/provision-keepwarm.sh # keep-warm EventBridge rule (idempotent)
 bash tests/run-all.sh --phase 2
 
 # 5. Phase 3 — CloudFront & DNS
@@ -189,14 +190,11 @@ bash infra/provision-cloudfront.sh   # also creates Route 53 DNS record
 bash tests/run-all.sh --phase 3
 
 # 6. Phase 4 — Deploy frontend
-#    IMPORTANT: after a rebuild, AWS will assign new resource IDs. Update these
-#    hardcoded values in frontend/src/config.js before running deploy.ps1:
-#      COGNITO_POOL_ID   → new COGNITO_USER_POOL_ID from outputs.env
-#      COGNITO_CLIENT_ID → new COGNITO_CLIENT_ID from outputs.env
-#      API_BASE          → new APIGW_BASE_URL from outputs.env
-pwsh deploy.ps1   # npm install + build + S3 sync + CF invalidation
+#    deploy.ps1 auto-generates frontend/.env from outputs.env — no manual edits needed.
+#    Ensure outputs.env is fully populated (COGNITO_USER_POOL_ID, COGNITO_CLIENT_ID, APIGW_BASE_URL).
+pwsh deploy.ps1   # writes frontend/.env, npm install + build + S3 sync + CF invalidation
 bash tests/run-all.sh --phase 4
 
-# 7. Phase 5 — Keep-warm rule (already provisioned in Phase 2 script above)
+# 7. Phase 5 — Keep-warm rule (provisioned in Phase 2 above via provision-keepwarm.sh)
 bash tests/run-all.sh --phase 5
 ```

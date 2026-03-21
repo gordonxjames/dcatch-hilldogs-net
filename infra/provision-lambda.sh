@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # provision-lambda.sh — Phase 2
 # Creates dcatch-lambda Lambda in VPC and attaches Cognito post-confirmation trigger.
+# Keep-warm EventBridge rule is provisioned separately by infra/provision-keepwarm.sh.
 # Run from repo root: bash infra/provision-lambda.sh
 
 set -euo pipefail
@@ -32,6 +33,7 @@ LAMBDA_FUNCTION_ARN=$(cd "$SCRIPT_DIR/lambda" && aws lambda create-function \
   --vpc-config "SubnetIds=$SUBNET_2A_ID,$SUBNET_2B_ID,SecurityGroupIds=$SG_LAMBDA_ID" \
   --timeout 30 \
   --memory-size 128 \
+  --environment "Variables={ALLOWED_ORIGIN=https://dcatch.hilldogs.net}" \
   --region "$REGION" \
   --tags Project=DCATCH \
   --query FunctionArn --output text)
@@ -74,40 +76,7 @@ aws lambda add-permission \
 
 echo "  Cognito trigger attached."
 
-# ─── 3. Keep-warm EventBridge rule ───────────────────────────────────────────
-
-echo "Creating keep-warm EventBridge rule dcatch-lambda-keepwarm..."
-
-KEEPWARM_RULE_ARN=$(aws events put-rule \
-  --name dcatch-lambda-keepwarm \
-  --schedule-expression "rate(5 minutes)" \
-  --state ENABLED \
-  --description "Keep dcatch-lambda warm" \
-  --tags Key=Project,Value=DCATCH \
-  --region "$REGION" \
-  --query RuleArn --output text)
-
-aws lambda remove-permission \
-  --function-name "$FUNCTION_NAME" \
-  --statement-id dcatch-lambda-keepwarm \
-  --region "$REGION" > /dev/null 2>&1 || true
-
-aws lambda add-permission \
-  --function-name "$FUNCTION_NAME" \
-  --statement-id dcatch-lambda-keepwarm \
-  --action lambda:InvokeFunction \
-  --principal events.amazonaws.com \
-  --source-arn "$KEEPWARM_RULE_ARN" \
-  --region "$REGION" > /dev/null
-
-aws events put-targets \
-  --rule dcatch-lambda-keepwarm \
-  --targets "Id=dcatch-lambda-keepwarm-target,Arn=$LAMBDA_FUNCTION_ARN" \
-  --region "$REGION" > /dev/null
-
-echo "  Keep-warm rule ARN: $KEEPWARM_RULE_ARN"
-
-# ─── 4. CloudWatch log retention ─────────────────────────────────────────────
+# ─── 3. CloudWatch log retention ─────────────────────────────────────────────
 
 echo "Setting CloudWatch log retention (7 days)..."
 
@@ -121,13 +90,11 @@ MSYS_NO_PATHCONV=1 aws logs put-retention-policy \
 
 grep -v "^LAMBDA_FUNCTION_ARN=" "$OUTPUTS" \
   | grep -v "^LAMBDA_FUNCTION_NAME=" \
-  | grep -v "^KEEPWARM_RULE_ARN=" \
   > "$OUTPUTS.tmp" && mv "$OUTPUTS.tmp" "$OUTPUTS"
 
 cat >> "$OUTPUTS" <<EOF
 LAMBDA_FUNCTION_ARN=$LAMBDA_FUNCTION_ARN
 LAMBDA_FUNCTION_NAME=$FUNCTION_NAME
-KEEPWARM_RULE_ARN=$KEEPWARM_RULE_ARN
 EOF
 
 echo "Lambda provisioning complete. Values written to outputs.env."

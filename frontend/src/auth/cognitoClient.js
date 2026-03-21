@@ -36,6 +36,8 @@ export function signIn(username, password) {
       return {
         type: 'mfa',
         mfaType,
+        cognitoUser: user,
+        challengeName,
         sendMfaCode: (code) => new Promise((res, rej) => {
           user.sendMFACode(code, {
             onSuccess(session) {
@@ -211,6 +213,36 @@ export function verifySoftwareToken(totpCode) {
     user.verifySoftwareToken(totpCode, 'Delta Catcher', {
       onSuccess() { resolve(); },
       onFailure(err) { reject(err); },
+    });
+  }));
+}
+
+// Complete MFA sign-in after signIn returns { type: 'mfa', cognitoUser, challengeName }
+// Prefer this over the sendMfaCode closure for new code — more composable.
+export function completeMfaSignIn(cognitoUser, code, challengeName) {
+  return new Promise((resolve, reject) => {
+    cognitoUser.sendMFACode(code, {
+      onSuccess(session) {
+        const payload = session.getIdToken().payload;
+        resolve({
+          idToken:  session.getIdToken().getJwtToken(),
+          username: payload['cognito:username'] || cognitoUser.getUsername(),
+          sub:      payload.sub,
+        });
+      },
+      onFailure(err) { reject(err); },
+    }, challengeName);
+  });
+}
+
+// Unified MFA preference setter — pass { totp: bool, sms: bool }
+// Mirrors REPL setMfaPreferences signature.
+export function setMfaPreferences({ totp, sms }) {
+  return withSession().then(({ user }) => new Promise((resolve, reject) => {
+    const totpPref = totp != null ? { Enabled: totp, PreferredMfa: totp } : null;
+    const smsPref  = sms  != null ? { Enabled: sms,  PreferredMfa: !totp && sms } : null;
+    user.setUserMfaPreference(smsPref, totpPref, (err) => {
+      if (err) reject(err); else resolve();
     });
   }));
 }

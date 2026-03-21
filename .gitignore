@@ -3,6 +3,7 @@ infra/outputs.env
 *.env
 .env*
 !infra/outputs.env.template
+!frontend/.env.template
 
 # Node
 node_modules/
